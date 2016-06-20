@@ -12,9 +12,9 @@ num_thetas = 2
 num_deltas = 50
 
 theta_min = 0.
-theta_max = 2*pi
-Delta_min = .5e-34
-Delta_max = 3e-33
+theta_max = 4*pi
+Delta_min = 0.1e-35
+Delta_max = 5e-33
 
 # electron relaxation time between singlet triplet state
 # s. pasini paper referenced t in units of "tau_p"??
@@ -181,11 +181,12 @@ def intAndPlotVec2(func, init, t0, t1, p, title,
     return (F_, success)
 
 memoize = False
-print("press 'y' to memoize")
-doMemo = getch()
-if doMemo == 'y':
-    memoize = True
-    print("Memoizing")
+
+# print("press 'y' to memoize")
+# doMemo = getch()
+# if doMemo == 'y':
+#     memoize = True
+#     print("Memoizing")
 
 
 ### Work with Antisymmetric pulse
