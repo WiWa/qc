@@ -2,7 +2,8 @@ import sys
 from numpy import *
 from scipy import integrate
 from scipy.constants import hbar, pi
-import pylab as p
+import matplotlib.pyplot as p
+from matplotlib.widgets import Slider, Button
 
 # electron relaxation time between singlet triplet state
 # s. pasini paper referenced t in units of "tau_p"??
@@ -17,8 +18,7 @@ def iw(t):
     return i_*w*t
 
 def normalize(v):
-    magnitude = sqrt(sum(map(lambda x: x**2, v)))
-    print(magnitude)
+    magnitude = sqrt(sum(map(lambda v_i: v_i**2, v)))
     return map(lambda v_i: float(v_i)/magnitude, v)
 
 # Makes X(t) driving pulse function
@@ -56,8 +56,8 @@ def dChis_dt_factory(X):
         def Chi_minus_dot_f(a, b):
             return (hbar / tau)*a*X(t) - D*b
 
-        a_dot = Chi_plus_dot_f(a, b)
-        b_dot = Chi_minus_dot_f(a,b)
+        a_dot = Chi_plus_dot_f( a, b)
+        b_dot = Chi_minus_dot_f(a, b)
 
         return c*array([
                     a_dot,
@@ -93,6 +93,9 @@ dChiSym2_dt = dChis_dt_factory(X_s_f)
 # Antisymmetric
 X_a_f = X_factory(theta1, a1_asym, b1_asym, True)
 dChiAsym_dt = dChis_dt_factory(X_a_f)
+
+X_a1b_f = X_factory(theta2, a1_asym, b1_asym, True)
+dChiAsymb_dt = dChis_dt_factory(X_a1b_f)
 #
 X_a2_f = X_factory(theta1, a2_asym, b2_asym, True)
 dChiAsym2_dt = dChis_dt_factory(X_a2_f)
@@ -127,6 +130,7 @@ def wrapIntegrate(func, init, init_t):
 
 ChiS_, success = wrapIntegrate(dChiSym_dt, Chi_0, t0)
 ChiA_, success = wrapIntegrate(dChiAsym_dt, Chi_0, t0)
+# ChiAb_, success = wrapIntegrate(dChiAsymb_dt, Chi_0, t0)
 
 if not success:
     print("Failure?")
@@ -136,10 +140,12 @@ else:
 
 ChiS = array(ChiS_)
 ChiA = array(ChiA_)
+# ChiAb = array(ChiAb_)
 ts = linspace(t0, t1, len(ChiS))          # time as x coordinate
 
 ChiS_p, ChiS_m = ChiS.T                        # Transverse
 ChiA_p, ChiA_m = ChiA.T                        # Transverse
+# ChiAb_p, ChiAb_m = ChiAb.T
 
 def sq(x):
     return x**2
@@ -158,27 +164,27 @@ delta_str = "Delta = " + str(D)
 sym_title = "Chi Symmetric; Real values; " + delta_str
 asym_title = "Chi Antisymmetric; Real values; " + delta_str
 
-f1 = p.figure(1)
-p.plot(ts, ChiS_p, 'r-', label='Chi_+')
-p.plot(ts, ChiS_m, 'b-', label='Chi_-')
-decorate(p, sym_title)
-
-f2 = p.figure(2)
-fidS = map(norm, ChiS_p)
-p.plot(ts, fidS, 'r-', label='Fidelity = |<Chi|0>')
-decorate(p, sym_title)
-print("Max Fidelity Sym: " + str(max(fidS)))
-
-f1 = p.figure(3)
-p.plot(ts, ChiA_p, 'r-', label='Chi_+')
-p.plot(ts, ChiA_m, 'b-', label='Chi_-')
-decorate(p, asym_title)
-
-f2 = p.figure(4)
-fidA = map(norm, ChiA_p)
-p.plot(ts, fidA, 'r-', label='Fidelity = |<Chi|0>')
-decorate(p, asym_title)
-print("Max Fidelity Antisym: " + str(max(fidA)))
+# f1 = p.figure(1)
+# p.plot(ts, ChiS_p, 'r-', label='Chi_+')
+# p.plot(ts, ChiS_m, 'b-', label='Chi_-')
+# decorate(p, sym_title)
+#
+# f2 = p.figure(2)
+# fidS = map(norm, ChiS_p)
+# p.plot(ts, fidS, 'r-', label='Fidelity = |<Chi|0>')
+# decorate(p, sym_title)
+# print("Max Fidelity Sym: " + str(max(fidS)))
+#
+# f1 = p.figure(3)
+# p.plot(ts, ChiA_p, 'r-', label='Chi_+')
+# p.plot(ts, ChiA_m, 'b-', label='Chi_-')
+# decorate(p, asym_title)
+#
+# f2 = p.figure(4)
+# fidA = map(norm, ChiA_p)
+# p.plot(ts, fidA, 'r-', label='Fidelity = |<Chi|0>')
+# decorate(p, asym_title)
+# print("Max Fidelity Antisym: " + str(max(fidA)))
 
 ### Fidelity vs Theta
 
@@ -190,6 +196,8 @@ max_fidsS = []
 avg_fidsS = []
 max_fidsA = []
 avg_fidsA = []
+
+fid_lists = []
 
 for theta in thetas:
     #Sym
@@ -206,18 +214,44 @@ for theta in thetas:
         X_a_f = X_factory(theta, a1_asym, b1_asym, True)
         dChiAsym_dt = dChis_dt_factory(X_a_f)
         ChiA_, success = wrapIntegrate(dChiAsym_dt, Chi_0, t0)
-        ChiA_p, ChiA_m = ChiA.T
+        ChiA_p, ChiA_m = array(ChiA_).T
         fidsA = map(norm, ChiA_p)
         max_fidsA.append(max(fidsA))
         avg_fidsA.append(average(fidsA))
 
-fz = p.figure(5)
-if do_s:
-    p.plot(thetas, max_fidsS, 'r-', label='Max Fidelity S')
-    p.plot(thetas, avg_fidsS, 'r--', label='Average Fidelity S')
-if do_a:
-    p.plot(thetas, max_fidsA, 'b-', label='Max Fidelity A')
-    p.plot(thetas, avg_fidsA, 'b--', label='Average Fidelity A')
-decorate(p, "Max/Avg fidelity vs theta", xlabel="Theta", ylabel="Fidelity")
+        fid_lists.append(fidsA)
+
+# fz = p.figure()
+# if do_s:
+#     p.plot(thetas, max_fidsS, 'r-', label='Max Fidelity S')
+#     p.plot(thetas, avg_fidsS, 'r--', label='Average Fidelity S')
+# if do_a:
+#     p.plot(thetas, max_fidsA, 'b-', label='Max Fidelity A')
+#     p.plot(thetas, avg_fidsA, 'b--', label='Average Fidelity A')
+# decorate(p, "Max/Avg fidelity vs theta", xlabel="Theta", ylabel="Fidelity")
+
+
+figz, axz = p.subplots()
+p.subplots_adjust(left=0.25, bottom=0.25)
+
+
+i = 21
+theta0 = thetas[i]
+s = fid_lists[i]
+l, = p.plot(ts, s, lw=2, color='red')
+decorate(p, "Fidelity vs theta", xlabel="Theta", ylabel="Fidelity")
+
+
+axcolor = 'lightgoldenrodyellow'
+axtheta = p.axes([0.25, 0.15, 0.65, 0.03], axisbg=axcolor)
+
+stheta = Slider(axtheta, "Theta", 0, 41, valinit=i)
+
+def update(val):
+    i = int(stheta.val)
+    theta = thetas[i]
+    l.set_ydata(fid_lists[i])
+    fig.canvas.draw_idle()
+stheta.on_changed(update)
 
 p.show()
