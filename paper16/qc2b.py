@@ -5,14 +5,14 @@ from scipy.constants import hbar, pi
 import matplotlib.pyplot as p
 from matplotlib.widgets import Slider, Button
 
-sys.path.append("/home/arbiter/qc")
-from getch import getch
+# sys.path.append("/home/arbiter/qc")
+# from getch import getch
 # PARAMS
 num_thetas = 2
 num_deltas = 50
 
 theta_min = 0.
-theta_max = 4*pi
+theta_max = 2*pi
 Delta_min = 0.1e-35
 Delta_max = 5e-33
 
@@ -250,24 +250,27 @@ delta_txt = """Delta ranges from
     {Delta_min} to {Delta_max}""".format(**locals())
 
 fig, axarr = p.subplots(2, sharex=True)
-fig.legend("", "", loc='upper left', title=delta_txt)
 p.subplots_adjust(left=0.25, bottom=0.30)
 
-i0 = num_deltas / 2
-j0 = num_thetas / 2
-
-Delta0 = Deltas[i0]
-theta0 = thetas[j0]
 # s = fid_lists[i0][j0]
 # l, = p.plot(ts, s, lw=2, color='red')
 
 if memoize:
+    i0 = num_deltas / 2
+    j0 = num_thetas / 2
+
+    Delta0 = Deltas[i0]
+    theta0 = thetas[j0]
+
     Chi_ps_0 = Chi_ps[i0][j0]
     Chi_ms_0 = Chi_ms[i0][j0]
     max_fid_0 = makeLine(max_fids[i0][j0], ts)
     avg_fid_0 = makeLine(avg_fids[i0][j0], ts)
     fid_0 = fid_lists[i0][j0]
 else:
+    Delta0 = (Delta_max - Delta_min) / 2
+    theta0 = (theta_max - theta_min) / 2
+
     X_a_f = X_factory(theta0, a1_asym, b1_asym, True)
     dChiAsym_dt = dChis_dt_factory(X_a_f, Delta0)
     ChiA_, suc = wrapIntegrate(dChiAsym_dt, Chi_0, t0, t1)
@@ -280,22 +283,29 @@ else:
     avg_fid_0 = makeLine(average(fidelity), ts)
     fid_0 = fidelity
 
-v_Chi_p, = axarr[0].plot(ts, Chi_ps_0, 'r-')
-v_Chi_m, = axarr[0].plot(ts, Chi_ms_0, 'b-')
-decorate(p, "Chi components", ylabel="Chi Component")
-v_max_fid, = axarr[1].plot(ts, max_fid_0, "b--")
-v_avg_fid, = axarr[1].plot(ts, avg_fid_0, "g--")
-v_fid, = axarr[1].plot(ts, fid_0, lw=2, color='red')
+v_Chi_p, = axarr[0].plot(ts, Chi_ps_0, 'r-', label="+ Real")
+v_Chi_m, = axarr[0].plot(ts, Chi_ms_0, 'b-', label="- Real")
+axarr[0].set_title("Chi Components Real Value")
+l = axarr[0].legend(loc='upper right', fancybox=True)
+l.draggable(True)
+l.get_frame().set_alpha(0.5)
+
+v_max_fid, = axarr[1].plot(ts, max_fid_0, "b--", label="Max Fidelity")
+v_avg_fid, = axarr[1].plot(ts, avg_fid_0, "g--", label="Average Fidelity")
+v_fid, = axarr[1].plot(ts, fid_0, lw=2, color='red', label="Fidelity")
 decorate(p, "Fidelity vs Time", xlabel="Time (tau)", ylabel="Fidelity")
+l = axarr[1].legend(loc='lower left', fancybox=True)
+l.draggable(True)
+l.get_frame().set_alpha(0.5)
 
 
 axcolor = 'lightgoldenrodyellow'
 axDelta = p.axes([0.25, 0.10, 0.65, 0.03], axisbg=axcolor)
 axtheta = p.axes([0.25, 0.15, 0.65, 0.03], axisbg=axcolor)
 
-d_cor = 1e33
+d_cor = 1e34
 
-sDelta = Slider(axDelta, "Delta (10^-33)", Delta_min*d_cor, Delta_max*d_cor,
+sDelta = Slider(axDelta, "Delta ({})".format(1./d_cor), Delta_min*d_cor, Delta_max*d_cor,
                 valinit=Delta0*d_cor)
 stheta = Slider(axtheta, "theta", theta_min, theta_max,
                 valinit=theta0)
