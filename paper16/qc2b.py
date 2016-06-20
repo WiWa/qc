@@ -14,15 +14,37 @@ tau = 1.
 D = 6e-33
 
 i_ = 1.0j
+
+delta_str = "Delta = " + str(D)
+sym_title = "Chi Symmetric; Real values; " + delta_str
+asym_title = "Chi Antisymmetric; Real values; " + delta_str
+
 def iw(t):
     return i_*w*t
 
 def normalize(v):
-    magnitude = sqrt(sum(map(lambda v_i: v_i**2, v)))
+    magnitude = norm(v)
     return map(lambda v_i: float(v_i)/magnitude, v)
 
+def sq(x):
+    return x**2
+
+def norm(x):
+    return sqrt(dot(x, conjugate(x)))
+
+def decorate(p, title, xlabel="time", ylabel="values"):
+    p.legend(loc='best')
+    p.xlabel(xlabel)
+    p.ylabel(ylabel)
+    p.title(title)
+
+def rangeAdapt(v, v_min, v_max, list):
+    partial = (v - v_min) / (v_max - v_min)
+    max_index = len(list) - 1
+    almost = int(floor( partial * (max_index) ))
+    return max(0, min(almost, max_index))
+
 # Makes X(t) driving pulse function
-# theta is either pi or pi/2
 # a, b are constants
 def X_factory(theta, a, b, antisym):
     def X_sym(t):
@@ -46,22 +68,22 @@ def X_factory(theta, a, b, antisym):
 def dChis_dt_factory(X):
     # wraps the coupled diff eqs.
     def dChis_dt(t, Chi):
-        a = Chi[0]      # Chi_plus component
-        b = Chi[1]      # Chi_minus component
+        plus = Chi[0]      # Chi_plus component
+        minus = Chi[1]      # Chi_minus component
         c = -1.0j/hbar
 
-        def Chi_plus_dot_f(a, b):
-            return D*a + (hbar / tau)*b*X(t)
+        def Chi_plus_dot_f(plus, minus):
+            return D*plus + (hbar / tau)*minus*X(t)
 
-        def Chi_minus_dot_f(a, b):
-            return (hbar / tau)*a*X(t) - D*b
+        def Chi_minus_dot_f(plus, minus):
+            return (hbar / tau)*plus*X(t) - D*minus
 
-        a_dot = Chi_plus_dot_f( a, b)
-        b_dot = Chi_minus_dot_f(a, b)
+        plus_dot = Chi_plus_dot_f(plus, minus)
+        minus_dot = Chi_minus_dot_f(plus, minus)
 
         return c*array([
-                    a_dot,
-                    b_dot,
+                    plus_dot,
+                    minus_dot,
                     ])
 
     return dChis_dt
@@ -87,15 +109,15 @@ b2_asym = 15.634390 * (1/tau)
 X_s_f = X_factory(theta1, a1_sym, None, False)
 dChiSym_dt = dChis_dt_factory(X_s_f)
 
-X_s_f = X_factory(theta1, a2_sym, None, False)
-dChiSym2_dt = dChis_dt_factory(X_s_f)
+# X_sb_f = X_factory(theta1, a2_sym, None, False)
+# dChiSym2_dt = dChis_dt_factory(X_s_f)
 
 # Antisymmetric
 X_a_f = X_factory(theta1, a1_asym, b1_asym, True)
 dChiAsym_dt = dChis_dt_factory(X_a_f)
 
-X_a1b_f = X_factory(theta2, a1_asym, b1_asym, True)
-dChiAsymb_dt = dChis_dt_factory(X_a1b_f)
+# X_a1b_f = X_factory(theta2, a1_asym, b1_asym, True)
+# dChiAsymb_dt = dChis_dt_factory(X_a1b_f)
 #
 X_a2_f = X_factory(theta1, a2_asym, b2_asym, True)
 dChiAsym2_dt = dChis_dt_factory(X_a2_f)
@@ -109,8 +131,6 @@ cb0 = array([1., 0.])
 cb1 = array([0., 1.])
 
 Chi_0 = normalize(cb0 + cb1)
-print(Chi_0)
-# Chi_0 = Chi_plus_0 + Chi_minus_0
 
 # Integration "params"
 steps = 800.
@@ -118,51 +138,42 @@ t0 = 0.
 t1 = tau
 dt = t1/steps     # 100 steps
 
-def wrapIntegrate(func, init, init_t):
+ts = linspace(t0, t1, steps + 1)
+
+def wrapIntegrate(func, init, t0, t1):
     vals = []
     sol = integrate.ode(func).set_integrator('zvode')
-    sol.set_initial_value(init, init_t)
+    sol.set_initial_value(init, t0)
     while sol.successful() and sol.t < t1:
         t_ = sol.t + dt
         res = sol.integrate(t_)
         vals.append(res)
     return (vals, sol.successful())
 
-ChiS_, success = wrapIntegrate(dChiSym_dt, Chi_0, t0)
-ChiA_, success = wrapIntegrate(dChiAsym_dt, Chi_0, t0)
-# ChiAb_, success = wrapIntegrate(dChiAsymb_dt, Chi_0, t0)
+def plotVec2(v0, v1, p, title, label0="|0>", label1="|1>"):
+    p.figure()
+    p.plot(ts, v0, 'r-', label=label0)
+    p.plot(ts, v1, 'b-', label=label1)
+    decorate(p, title)
 
-if not success:
-    print("Failure?")
-    sys.exit()
-else:
-    print("Success?")
+def intAndPlotVec2(func, init, t0, t1, p, title,
+                    label0="|0>", label1="|1>"):
+    F_, success = wrapIntegrate(func, init, t0, t1)
+    F0, F1 = array(F_).T
+    plotVec2(F0, F1, p, title, label0, label1)
 
-ChiS = array(ChiS_)
-ChiA = array(ChiA_)
-# ChiAb = array(ChiAb_)
-ts = linspace(t0, t1, len(ChiS))          # time as x coordinate
+    return (F_, success)
 
-ChiS_p, ChiS_m = ChiS.T                        # Transverse
-ChiA_p, ChiA_m = ChiA.T                        # Transverse
-# ChiAb_p, ChiAb_m = ChiAb.T
 
-def sq(x):
-    return x**2
+# Chi_p, Chi_m = array(Chi).T
+#
+# fidelity = map(norm, Chi_p)
 
-def norm(x):
-    return sqrt(dot(x, conjugate(x)))
-
-def decorate(p, title, xlabel="time", ylabel="values"):
-    p.legend(loc='best')
-    p.xlabel(xlabel)
-    p.ylabel(ylabel)
-    p.title(title)
+# p.figure()
+# p.plot(ts, fidelity, 'r-', label="Fidelity")
+# decorate(p, "Fidelity; Antisym, theta = pi")
 
 ## Plotting
-delta_str = "Delta = " + str(D)
-sym_title = "Chi Symmetric; Real values; " + delta_str
-asym_title = "Chi Antisymmetric; Real values; " + delta_str
 
 # f1 = p.figure(1)
 # p.plot(ts, ChiS_p, 'r-', label='Chi_+')
@@ -186,6 +197,8 @@ asym_title = "Chi Antisymmetric; Real values; " + delta_str
 # decorate(p, asym_title)
 # print("Max Fidelity Antisym: " + str(max(fidA)))
 
+Chi, suc = intAndPlotVec2(dChiAsym_dt, Chi_0, t0, t1, p, asym_title)
+
 ### Fidelity vs Theta
 
 do_s = False
@@ -204,7 +217,7 @@ for theta in thetas:
     if do_s:
         X_s_f = X_factory(theta, a1_asym, None, False)
         dChiSym_dt = dChis_dt_factory(X_s_f)
-        ChiA_, success = wrapIntegrate(dChiSym_dt, Chi_0, t0)
+        ChiA_, success = wrapIntegrate(dChiSym_dt, Chi_0, t0, t1)
         ChiS_p, ChiS_m = ChiS.T
         fidsS = map(norm, ChiS_p)
         max_fidsS.append(max(fidsS))
@@ -213,7 +226,7 @@ for theta in thetas:
     #Asym
         X_a_f = X_factory(theta, a1_asym, b1_asym, True)
         dChiAsym_dt = dChis_dt_factory(X_a_f)
-        ChiA_, success = wrapIntegrate(dChiAsym_dt, Chi_0, t0)
+        ChiA_, success = wrapIntegrate(dChiAsym_dt, Chi_0, t0, t1)
         ChiA_p, ChiA_m = array(ChiA_).T
         fidsA = map(norm, ChiA_p)
         max_fidsA.append(max(fidsA))
@@ -221,34 +234,35 @@ for theta in thetas:
 
         fid_lists.append(fidsA)
 
-# fz = p.figure()
-# if do_s:
-#     p.plot(thetas, max_fidsS, 'r-', label='Max Fidelity S')
-#     p.plot(thetas, avg_fidsS, 'r--', label='Average Fidelity S')
-# if do_a:
-#     p.plot(thetas, max_fidsA, 'b-', label='Max Fidelity A')
-#     p.plot(thetas, avg_fidsA, 'b--', label='Average Fidelity A')
-# decorate(p, "Max/Avg fidelity vs theta", xlabel="Theta", ylabel="Fidelity")
+if do_a or do_s:
+    p.figure()
+if do_s:
+    p.plot(thetas, max_fidsS, 'r-', label='Max Fidelity S')
+    p.plot(thetas, avg_fidsS, 'r--', label='Average Fidelity S')
+if do_a:
+    p.plot(thetas, max_fidsA, 'b-', label='Max Fidelity A')
+    p.plot(thetas, avg_fidsA, 'b--', label='Average Fidelity A')
+decorate(p, "Max/Avg fidelity vs theta", xlabel="Theta", ylabel="Fidelity")
 
 
-figz, axz = p.subplots()
-p.subplots_adjust(left=0.25, bottom=0.25)
+fig, ax = p.subplots()
+p.subplots_adjust(left=0.25, bottom=0.35)
 
 
 i = 21
 theta0 = thetas[i]
 s = fid_lists[i]
 l, = p.plot(ts, s, lw=2, color='red')
-decorate(p, "Fidelity vs theta", xlabel="Theta", ylabel="Fidelity")
+decorate(p, "Fidelity vs Time", xlabel="Time (tau)", ylabel="Fidelity")
 
 
 axcolor = 'lightgoldenrodyellow'
 axtheta = p.axes([0.25, 0.15, 0.65, 0.03], axisbg=axcolor)
 
-stheta = Slider(axtheta, "Theta", 0, 41, valinit=i)
+stheta = Slider(axtheta, "Theta", 0, pi, valinit=thetas[i])
 
 def update(val):
-    i = int(stheta.val)
+    i = rangeAdapt(stheta.val, 0, pi, thetas)
     theta = thetas[i]
     l.set_ydata(fid_lists[i])
     fig.canvas.draw_idle()
