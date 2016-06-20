@@ -5,9 +5,11 @@ from scipy.constants import hbar, pi
 import matplotlib.pyplot as p
 from matplotlib.widgets import Slider, Button
 
+sys.path.append("/home/arbiter/qc")
+from getch import getch
 # PARAMS
-num_thetas = 6
-num_deltas = 42
+num_thetas = 2
+num_deltas = 50
 
 theta_min = 0.
 theta_max = 2*pi
@@ -178,6 +180,14 @@ def intAndPlotVec2(func, init, t0, t1, p, title,
 
     return (F_, success)
 
+memoize = False
+print("press 'y' to memoize")
+doMemo = getch()
+if doMemo == 'y':
+    memoize = True
+    print("Memoizing")
+
+
 ### Work with Antisymmetric pulse
 
 # Chi, suc = intAndPlotVec2(dChiAsym_dt, Chi_0, t0, t1, p, asym_title)
@@ -189,46 +199,48 @@ def intAndPlotVec2(func, init, t0, t1, p, title,
 thetas = linspace(theta_min, theta_max, num_thetas)
 Deltas = linspace(Delta_min, Delta_max, num_deltas)
 
+
+## Data to take
+## Keep track of these guys throughout the app ;)
 Chi_ps = []
 Chi_ms = []
 max_fids = []
 avg_fids = []
 fid_lists = []
 
-start = time.time()
+if memoize:
+    start = time.time()
 
-for i in range(len(Deltas)):
-    length = str(len(Deltas))
-    if i % 10 is len(Deltas) / 10:
-        print("... " + str(i) + "/" + length)
-    Chi_ps.append([])
-    Chi_ms.append([])
-    max_fids.append([])
-    avg_fids.append([])
-    fid_lists.append([])
-    for j in range(len(thetas)):
-        Delta = Deltas[i]
-        theta = thetas[j]
+    for i in range(len(Deltas)):
 
-        X_a_f = X_factory(theta, a1_asym, b1_asym, True)
-        dChiAsym_dt = dChis_dt_factory(X_a_f, Delta)
-        ChiA_, suc = wrapIntegrate(dChiAsym_dt, Chi_0, t0, t1)
-        ChiA_p, ChiA_m = array(ChiA_).T
+        length = str(len(Deltas))
+        if i % 10 is len(Deltas) / 10:
+            print("... " + str(i) + "/" + length)
 
-        fidelity = map(norm, ChiA_p)
+        Chi_ps.append([])
+        Chi_ms.append([])
+        max_fids.append([])
+        avg_fids.append([])
+        fid_lists.append([])
 
-        Chi_ps[i].append(ChiA_p)
-        Chi_ms[i].append(ChiA_m)
-        max_fids[i].append(max(fidelity))
-        avg_fids[i].append(average(fidelity))
-        fid_lists[i].append(fidelity)
+        for j in range(len(thetas)):
+            Delta = Deltas[i]
+            theta = thetas[j]
 
-print("Time taken: " + str( time.time() - start ))
+            X_a_f = X_factory(theta, a1_asym, b1_asym, True)
+            dChiAsym_dt = dChis_dt_factory(X_a_f, Delta)
+            ChiA_, suc = wrapIntegrate(dChiAsym_dt, Chi_0, t0, t1)
+            ChiA_p, ChiA_m = array(ChiA_).T
 
-# p.figure()
-# p.plot(thetas, max_fids, 'b-', label='Max Fidelity A')
-# p.plot(thetas, avg_fids, 'b--', label='Average Fidelity A')
-# decorate(p, "Max/Avg fidelity vs theta", xlabel="Theta", ylabel="Fidelity")
+            fidelity = map(norm, ChiA_p)
+
+            Chi_ps[i].append(ChiA_p)
+            Chi_ms[i].append(ChiA_m)
+            max_fids[i].append(max(fidelity))
+            avg_fids[i].append(average(fidelity))
+            fid_lists[i].append(fidelity)
+
+    print("Time taken to memoize: " + str( time.time() - start ))
 
 def makeLine(c, xs):
     return [c for x in xs]
@@ -247,12 +259,32 @@ Delta0 = Deltas[i0]
 theta0 = thetas[j0]
 # s = fid_lists[i0][j0]
 # l, = p.plot(ts, s, lw=2, color='red')
-v_Chi_p, = axarr[0].plot(ts, Chi_ps[i0][j0], 'r-')
-v_Chi_m, = axarr[0].plot(ts, Chi_ms[i0][j0], 'b-')
+
+if memoize:
+    Chi_ps_0 = Chi_ps[i0][j0]
+    Chi_ms_0 = Chi_ms[i0][j0]
+    max_fid_0 = makeLine(max_fids[i0][j0], ts)
+    avg_fid_0 = makeLine(avg_fids[i0][j0], ts)
+    fid_0 = fid_lists[i0][j0]
+else:
+    X_a_f = X_factory(theta0, a1_asym, b1_asym, True)
+    dChiAsym_dt = dChis_dt_factory(X_a_f, Delta0)
+    ChiA_, suc = wrapIntegrate(dChiAsym_dt, Chi_0, t0, t1)
+    ChiA_p, ChiA_m = array(ChiA_).T
+    fidelity = map(norm, ChiA_p)
+
+    Chi_ps_0 = ChiA_p
+    Chi_ms_0 = ChiA_m
+    max_fid_0 = makeLine(max(fidelity), ts)
+    avg_fid_0 = makeLine(average(fidelity), ts)
+    fid_0 = fidelity
+
+v_Chi_p, = axarr[0].plot(ts, Chi_ps_0, 'r-')
+v_Chi_m, = axarr[0].plot(ts, Chi_ms_0, 'b-')
 decorate(p, "Chi components", ylabel="Chi Component")
-v_max_fid, = axarr[1].plot(ts, makeLine(max_fids[i0][j0], ts), "b--")
-v_avg_fid, = axarr[1].plot(ts, makeLine(avg_fids[i0][j0], ts), "g--")
-v_fid, = axarr[1].plot(ts, fid_lists[i0][j0], lw=2, color='red')
+v_max_fid, = axarr[1].plot(ts, max_fid_0, "b--")
+v_avg_fid, = axarr[1].plot(ts, avg_fid_0, "g--")
+v_fid, = axarr[1].plot(ts, fid_0, lw=2, color='red')
 decorate(p, "Fidelity vs Time", xlabel="Time (tau)", ylabel="Fidelity")
 
 
@@ -268,15 +300,37 @@ stheta = Slider(axtheta, "theta", theta_min, theta_max,
                 valinit=theta0)
 
 def update(val):
-    i = rangeAdapt(sDelta.val / d_cor, Delta_min, Delta_max, Deltas)
-    j = rangeAdapt(stheta.val, theta_min, theta_max, thetas)
-    Delta = Deltas[i]
-    theta = thetas[j]
-    v_Chi_p.set_ydata(Chi_ps[i][j])
-    v_Chi_m.set_ydata(Chi_ms[i][j])
-    v_max_fid.set_ydata(max_fids[i][j])
-    v_avg_fid.set_ydata(avg_fids[i][j])
-    v_fid.set_ydata(fid_lists[i][j])
+
+    # Memoization!
+    if memoize:
+        i = rangeAdapt(sDelta.val / d_cor, Delta_min, Delta_max, Deltas)
+        j = rangeAdapt(stheta.val, theta_min, theta_max, thetas)
+        Delta = Deltas[i]
+        theta = thetas[j]
+
+        v_Chi_p.set_ydata(Chi_ps[i][j])
+        v_Chi_m.set_ydata(Chi_ms[i][j])
+        v_max_fid.set_ydata(max_fids[i][j])
+        v_avg_fid.set_ydata(avg_fids[i][j])
+        v_fid.set_ydata(fid_lists[i][j])
+
+    # Dynamic?!
+    else:
+        Delta = sDelta.val / d_cor
+        theta = stheta.val
+
+        X_a_f = X_factory(theta, a1_asym, b1_asym, True)
+        dChiAsym_dt = dChis_dt_factory(X_a_f, Delta)
+        ChiA_, suc = wrapIntegrate(dChiAsym_dt, Chi_0, t0, t1)
+        ChiA_p, ChiA_m = array(ChiA_).T
+        fidelity = map(norm, ChiA_p)
+
+        v_Chi_p.set_ydata(ChiA_p)
+        v_Chi_m.set_ydata(ChiA_m)
+        v_max_fid.set_ydata(max(fidelity))
+        v_avg_fid.set_ydata(average(fidelity))
+        v_fid.set_ydata(fidelity)
+
     fig.canvas.draw_idle()
 sDelta.on_changed(update)
 stheta.on_changed(update)
