@@ -34,12 +34,12 @@ def addParens(s):
     return "(%s)" % (s)
 
 # http://stackoverflow.com/questions/12375612/avoid-duplicate-file-names-in-a-folder-in-python
-def getNextName(filepath):
+def getNextName(filepath, ext):
     uniq = 0
-    filepath_mod = filepath
+    filepath_mod = filepath + "." + ext
     while os.path.exists(filepath_mod):
         uniq += 1
-        filepath_mod = "%s %s" % (filepath, addParens(uniq))
+        filepath_mod = "%s %s.%s" % (filepath, addParens(uniq), ext)
     return filepath_mod
 
 def saveWith(relPath, savefunc, keyword_params):

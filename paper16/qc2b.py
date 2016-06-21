@@ -1,4 +1,4 @@
-import sys, time
+import os, sys, time
 from numpy import *
 from scipy import integrate
 from scipy.constants import hbar, pi
@@ -44,8 +44,11 @@ def normalize(v):
 def sq(x):
     return x**2
 
+def csq(x):
+    return dot(x, conjugate(x))
+
 def norm(x):
-    return sqrt(dot(x, conjugate(x)))
+    return sqrt(csq(x))
 
 def decorate(p, title, xlabel="time", ylabel="values"):
     p.legend(loc='best', title=var_txt)
@@ -249,11 +252,14 @@ def makeLine(c, xs):
 delta_txt = """Delta ranges from
     {Delta_min} to {Delta_max}""".format(**locals())
 
-fig, axarr = p.subplots(2, sharex=True)
-p.subplots_adjust(left=0.25, bottom=0.30)
 
 # s = fid_lists[i0][j0]
 # l, = p.plot(ts, s, lw=2, color='red')
+
+def annotateSumProb(t, sum_prob):
+    val = sum_prob[len(sum_prob)/2]
+    s = "Sum of probabilities: " + str(val)
+    t.set_text(s)
 
 if memoize:
     i0 = num_deltas / 2
@@ -276,27 +282,49 @@ else:
     ChiA_, suc = wrapIntegrate(dChiAsym_dt, Chi_0, t0, t1)
     ChiA_p, ChiA_m = array(ChiA_).T
     fidelity = map(norm, ChiA_p)
+    fidelity_down = map(norm, ChiA_m)
 
-    Chi_ps_0 = ChiA_p
-    Chi_ms_0 = ChiA_m
+    Chi_ps_0 = map(csq, ChiA_p)
+    Chi_ms_0 = map(csq, ChiA_m)
+    sum_prob_0 = makeLine(average(Chi_ps_0) + average(Chi_ms_0), ts)
     max_fid_0 = makeLine(max(fidelity), ts)
     avg_fid_0 = makeLine(average(fidelity), ts)
     fid_0 = fidelity
+    fid_d_0 = fidelity_down
 
-v_Chi_p, = axarr[0].plot(ts, Chi_ps_0, 'r-', label="+ Real")
-v_Chi_m, = axarr[0].plot(ts, Chi_ms_0, 'b-', label="- Real")
-axarr[0].set_title("Chi Components Real Value")
+fig, axarr = p.subplots(3, sharex=True, figsize=(12, 10))
+p.subplots_adjust(left=0.25, bottom=0.30)
+
+v_Chi_p, = axarr[0].plot(ts, Chi_ps_0, 'r-', label="+ Probablity")
+v_Chi_m, = axarr[0].plot(ts, Chi_ms_0, 'b-', label="- Probablity")
+v_sum_prob, = axarr[0].plot(ts, sum_prob_0, 'g--', label="Sum")
+axarr[0].axis([0., 1., -0.1, 1.2])
+z = sum_prob_0[len(sum_prob_0)/2]
+sum_prob_text = axarr[0].text(0.3, 1.1, "Sum of probabilities: " + str(z), ha='center', va='center')
+axarr[0].set_title("Chi Components Squared (Probabilities)")
 l = axarr[0].legend(loc='upper right', fancybox=True)
 l.draggable(True)
 l.get_frame().set_alpha(0.5)
 
 v_max_fid, = axarr[1].plot(ts, max_fid_0, "b--", label="Max Fidelity")
 v_avg_fid, = axarr[1].plot(ts, avg_fid_0, "g--", label="Average Fidelity")
-v_fid, = axarr[1].plot(ts, fid_0, lw=2, color='red', label="Fidelity")
-decorate(p, "Fidelity vs Time", xlabel="Time (tau)", ylabel="Fidelity")
+v_fid, = axarr[1].plot(ts, fid_0, lw=2, color='red', label="Fidelity (|Chi+>)")
+axarr[1].axis([0., 1., -0.1, 1.2])
+axarr[1].set_title("Fidelity (|Chi+>) vs Time")
+axarr[1].set_ylabel("|Chi+>")
 l = axarr[1].legend(loc='lower left', fancybox=True)
 l.draggable(True)
 l.get_frame().set_alpha(0.5)
+
+v_fid_d, = axarr[2].plot(ts, fid_d_0, lw=2, color='red', label="|Chi->")
+decorate(p, "|Chi-> vs Time", xlabel="Time (tau)")
+axarr[2].axis([0., 1., -0.1, 1.2])
+axarr[2].set_ylabel("|Chi->")
+l = axarr[2].legend(loc='lower left', fancybox=True)
+l.draggable(True)
+l.get_frame().set_alpha(0.5)
+
+
 
 
 axcolor = 'lightgoldenrodyellow'
@@ -335,15 +363,54 @@ def update(val):
         ChiA_, suc = wrapIntegrate(dChiAsym_dt, Chi_0, t0, t1)
         ChiA_p, ChiA_m = array(ChiA_).T
         fidelity = map(norm, ChiA_p)
+        fidelity_down = map(norm, ChiA_m)
 
-        v_Chi_p.set_ydata(ChiA_p)
-        v_Chi_m.set_ydata(ChiA_m)
+        Chi_ps = map(csq, ChiA_p)
+        Chi_ms = map(csq, ChiA_m)
+        sum_prob = makeLine(average(Chi_ps) + average(Chi_ms), ts)
+        v_Chi_p.set_ydata(Chi_ps)
+        v_Chi_m.set_ydata(Chi_ms)
+        v_sum_prob.set_ydata(sum_prob)
         v_max_fid.set_ydata(max(fidelity))
         v_avg_fid.set_ydata(average(fidelity))
         v_fid.set_ydata(fidelity)
+        v_fid_d.set_ydata(fidelity_down)
+        annotateSumProb(sum_prob_text, sum_prob)
 
     fig.canvas.draw_idle()
 sDelta.on_changed(update)
 stheta.on_changed(update)
+
+### BUTTONS
+def addParens(s):
+    return "(%s)" % (s)
+def getNextName(filepath, ext):
+    uniq = 0
+    filepath_mod = filepath + "." + ext
+    while os.path.exists(filepath_mod):
+        uniq += 1
+        filepath_mod = "%s %s.%s" % (filepath, addParens(uniq), ext)
+    return filepath_mod
+
+def save(event):
+    filename = "../figures/fidelity-fig"
+    ext = 'png'
+    filename = getNextName(filename, ext)
+    fig.savefig(filename)
+    print("Saved as: ")
+    print(filename)
+
+def reset(event):
+    sDelta.reset()
+    stheta.reset()
+
+save_ax = p.axes([0.8, 0.025, 0.1, 0.04])
+save_btn = Button(save_ax, 'Save', color=axcolor, hovercolor='0.975')
+save_btn.on_clicked(save)
+
+reset_ax = p.axes([0.6, 0.025, 0.1, 0.04])
+reset_btn = Button(reset_ax, 'Reset', color=axcolor, hovercolor='0.975')
+reset_btn.on_clicked(reset)
+
 
 p.show()

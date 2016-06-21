@@ -18,4 +18,4 @@ print(np.array([1,2]))
 
 print(os.listdir(qc_dir)[0])
 
-print(getNextName(absPath('qc1.py')))
+print(getNextName(unpy(absPath('qc1.py')),'py'))
