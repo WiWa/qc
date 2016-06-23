@@ -48,36 +48,41 @@ dm_1 = np.matrix([ [0, 0], cb_1 ]).T
 
 ### Pulses
 
+hoa = (hbar / a_max)
+
 # Eq. 15
 # Pi pulse
+T_pi = pi * hoa
 def a_pi(t):
-    if 0 < t and t < (pi * hbar / a_max):
+    if 0 < t and t < T_pi:
         return a_max
     return 0
 
 # Eq. 16
 # CORPSE
+T_C = (13 * pi / 3) * hoa
 def a_C(t):
     if t < 0:
         return 0
-    if t < (pi / 3):
+    if t < ((pi / 3) * hoa):
         return a_max
-    if t <= (2 * pi):
+    if t <= ((2 * pi) * hoa):
         return -a_max
-    if t < (13 * pi / 3):
+    if t < (T_C):
         return a_max
     return 0
 
 # Eq. 17
 # SCORPSE, i.e. Short CORPSE
+T_SC = (7 * pi / 3) * hoa
 def a_SC(t):
     if t < 0:
         return 0
-    if t < (pi / 3):
+    if t < ((pi / 3) * hoa):
         return -a_max
-    if t <= (2 * pi):
+    if t <= ((2 * pi) * hoa):
         return a_max
-    if t < (7 * pi / 3):
+    if t < (T_SC):
         return -a_max
     return 0
 
@@ -130,10 +135,8 @@ def sumHeavisideMonotonic(t, ts):
 # Eq. 8
 def generateRho(rho_0, N, Us):
     def rho(t):
-        terms = []
-        for k in range(0, N):
-            U_k_t = np.matrix(Us[k](t))
-            terms.append(U_k_t * rho_0 * U_k_t.H)
+        U_k_ts = [np.matrix(U_k(t)) for U_k in Us]
+        terms = [U_k_t * rho_0 * U_k_t.H for U_k_t in U_k_ts]
         return (1./N) * sum(terms)
     return rho
 
@@ -141,18 +144,10 @@ def generateRho(rho_0, N, Us):
 # Generate unitary time evolutions
 # Ignore time-ordering for now...
 def generateU_k(a, eta_k):
-    # steps = 1000
-    # H = generateH(a, eta_k)
-    # def U_k(t):
-    #     H_ = -(1.j/hbar) * integrateM2(H, 0, t, steps)
-    #     return exmp(H_)
-    # return U_k
     def U_k(t):
         a_, err1 = integrate.quad(a, 0, t)
         eta_k_, err2 = integrate.quad(eta_k, 0, t)
         H_ = -(1.j/hbar) * H_t(a_, eta_k_)
-        # print("U_K")
-        # print(np.array(H_))
         return expm(np.array(H_))
     return U_k
 
@@ -163,7 +158,8 @@ def ezGenerate_Rho(a, t_end, tau_c, eta_0, rho_0, N):
 
 # Generate a U_k
 def ezGenerateU_k(a, t_end, tau_c, eta_0):
-    return  generateU_k(a, ezGenerateEta(t_end, tau_c, eta_0))
+    return generateU_k(a, ezGenerateEta(t_end, tau_c, eta_0))
+    # return generateU_k(a, eta_sys)
 
 # Integrate a 2x2 matrix
 # def integrateM2(M, t_0, t_f):
@@ -190,20 +186,6 @@ def fixSingleTx(rho_0, N, Us, T, rho_f):
 def fidSingleTxDirect(rho_f, rho, T):
     return np.trace(rho_f.H * rho(T))
 
-js = generateJumpTimes(50, 1)
-print(js)
-eta = generateEta(js, 1)
-print([eta(t) for t in range(0,10)])
-print([sumHeavisideMonotonic(t, js) for t in range(0,10) ])
-H_ = generateH(lambda t: 1.5*t, lambda t: 3.5*t)
-print(H_(1))
-print(H_(0))
-
-T = 1.
-start = time.time()
-G = integrateM2(H_, 0., T, 1000)
-print("time taken: " + str(time.time() - start))
-print(G)
 
 ####
 
@@ -211,30 +193,44 @@ print(G)
 rho_0 = dm_1
 rho_f = dm_0
 eta_0 = Delta
-N = 420 # number of RTN trajectories
-t_end = 50 # end of RTN
-T = pi
+N = 1000 # number of RTN trajectories
+t_end = 32 / hoa # end of RTN
 
-tau_c_0 = 0.5 * (a_max / hbar)
-tau_c_f = 30. * (a_max / hbar)
-dtau_c = 0.5 * (a_max / hbar)
+tau_c_0 = 0.2 / hoa
+tau_c_f = 30. / hoa
+dtau_c = 1.2 / hoa
 tau_c = tau_c_0
 tau_cs = [tau_c]
 while tau_c < tau_c_f:
     tau_c += dtau_c
     tau_cs.append(tau_c)
 
-fids = []
+fids_pi = []
+fids_C = []
+fids_SC = []
 
+start = time.time()
 for i in range(len(tau_cs)):
     print(str(i) + "/" + str(len(tau_cs)))
     tau_c = tau_cs[i]
+
     rho_pi = ezGenerate_Rho(a_pi, t_end, tau_c, eta_0, rho_0, N)
-    fid = fidSingleTxDirect(rho_f, rho_pi, T)
-    fids.append(fid)
+    fid_pi = fidSingleTxDirect(rho_f, rho_pi, T_pi)
+    fids_pi.append(fid_pi)
+
+    rho_C = ezGenerate_Rho(a_C, t_end, tau_c, eta_0, rho_0, N)
+    fid_C = fidSingleTxDirect(rho_f, rho_C, T_C)
+    fids_C.append(fid_C)
+
+    # rho_SC = ezGenerate_Rho(a_SC, t_end, tau_c, eta_0, rho_0, N)
+    # fid_SC = fidSingleTxDirect(rho_f, rho_SC, T_SC)
+    # fids_SC.append(fid_SC)
+print("time taken: " + str(time.time() - start))
 
 fig = plt.figure()
-plt.plot(tau_cs, fids, 'r--', label="pi pulse")
-plt.axis([0, 30, 0.975, 1])
+plt.plot(tau_cs, fids_pi, 'b--', label="pi pulse")
+plt.plot(tau_cs, fids_C, 'r-', label="CORPSE pulse")
+# plt.plot(tau_cs, fids_SC, 'r--', label="SCORPSE pulse")
+# plt.axis([0, 30, 0.975, 1])
 plt.legend(loc='best')
 plt.show()
