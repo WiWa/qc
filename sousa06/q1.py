@@ -90,7 +90,7 @@ def eta_sys(t):
 # Hamiltonian
 def generateH(a, eta):
     def H_(t):
-        return 0.5 * a(t) * sigmaX + 0.5 * eta(t) * sigmaZ
+        return H_t(a(t), eta(t))
     return H_
 
 # Evaluate H given pre-evaluated a(t) and eta(t)
@@ -117,8 +117,11 @@ def generateJumpTimes(t_end, tau_c):
 # The heaviside function used is 1 at 0.
 def generateEta(ts, eta_0):
     def eta(t):
-        return (-1. ** sumHeavisideMonotonic(t, ts) ) * eta_0
+        return ((-1) ** sumHeavisideMonotonic(t, ts) ) * eta_0
     return eta
+
+def ezGenerateEta(t_end, tau_c, eta_0):
+    return generateEta(generateJumpTimes(t_end, tau_c), eta_0)
 
 # Can use takewhile over filter because monotonic
 def sumHeavisideMonotonic(t, ts):
@@ -148,7 +151,9 @@ def generateU_k(a, eta_k):
         a_, err1 = integrate.quad(a, 0, t)
         eta_k_, err2 = integrate.quad(eta_k, 0, t)
         H_ = -(1.j/hbar) * H_t(a_, eta_k_)
-        return expm(H_)
+        # print("U_K")
+        # print(np.array(H_))
+        return expm(np.array(H_))
     return U_k
 
 # Generate a rho
@@ -158,9 +163,7 @@ def ezGenerate_Rho(a, t_end, tau_c, eta_0, rho_0, N):
 
 # Generate a U_k
 def ezGenerateU_k(a, t_end, tau_c, eta_0):
-    return  generateU_k(a,
-            generateEta(
-            generateJumpTimes(t_end, tau_c), eta_0))
+    return  generateU_k(a, ezGenerateEta(t_end, tau_c, eta_0))
 
 # Integrate a 2x2 matrix
 # def integrateM2(M, t_0, t_f):
@@ -187,8 +190,11 @@ def fixSingleTx(rho_0, N, Us, T, rho_f):
 def fidSingleTxDirect(rho_f, rho, T):
     return np.trace(rho_f.H * rho(T))
 
-print(generateJumpTimes(10, 1))
-print(sumHeavisideMonotonic(3, [1,2,3,4,5,6]))
+js = generateJumpTimes(50, 1)
+print(js)
+eta = generateEta(js, 1)
+print([eta(t) for t in range(0,10)])
+print([sumHeavisideMonotonic(t, js) for t in range(0,10) ])
 H_ = generateH(lambda t: 1.5*t, lambda t: 3.5*t)
 print(H_(1))
 print(H_(0))
@@ -206,10 +212,29 @@ rho_0 = dm_1
 rho_f = dm_0
 eta_0 = Delta
 N = 420 # number of RTN trajectories
-t_end = pi
-tau_c = 1
-rho_pi = ezGenerate_Rho(a_pi, t_end, tau_c, eta_0, rho_0, N)
-rho = rho_pi
-# print(rho_f)
-fid = fidSingleTxDirect(rho_f, rho, t_end)
-print(fid)
+t_end = 50 # end of RTN
+T = pi
+
+tau_c_0 = 0.5 * (a_max / hbar)
+tau_c_f = 30. * (a_max / hbar)
+dtau_c = 0.5 * (a_max / hbar)
+tau_c = tau_c_0
+tau_cs = [tau_c]
+while tau_c < tau_c_f:
+    tau_c += dtau_c
+    tau_cs.append(tau_c)
+
+fids = []
+
+for i in range(len(tau_cs)):
+    print(str(i) + "/" + str(len(tau_cs)))
+    tau_c = tau_cs[i]
+    rho_pi = ezGenerate_Rho(a_pi, t_end, tau_c, eta_0, rho_0, N)
+    fid = fidSingleTxDirect(rho_f, rho_pi, T)
+    fids.append(fid)
+
+fig = plt.figure()
+plt.plot(tau_cs, fids, 'r--', label="pi pulse")
+plt.axis([0, 30, 0.975, 1])
+plt.legend(loc='best')
+plt.show()
