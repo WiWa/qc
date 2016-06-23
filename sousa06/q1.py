@@ -18,14 +18,14 @@ from itertools import takewhile
 # Mikko Mottonen and Rogerio de Sousa
 ###
 
-sigmaX = np.matrix([    [0, 1]  ,
-                        [1, 0]  ])
+sigmaX = np.matrix([    [0., 1.]  ,
+                        [1., 0.]  ])
 
-sigmaY = np.matrix([    [0,-1j] ,
-                        [1j, 0] ])
+sigmaY = np.matrix([    [0.,-1.j] ,
+                        [1.j, 0.] ])
 
-sigmaZ = np.matrix([    [1, 0]  ,
-                        [0,-1]  ])
+sigmaZ = np.matrix([    [1., 0.]  ,
+                        [0.,-1.]  ])
 
 
 ####
@@ -90,7 +90,6 @@ def a_SC(t):
 def eta_sys(t):
     return Delta
 
-
 # Eq. 2
 # Hamiltonian
 def generateH(a, eta):
@@ -111,7 +110,7 @@ def generateJumpTimes(t_end, tau_c):
     t = 0.
     while t < t_end:
         p = np.random.random_sample()
-        dt = -tau_c * np.log(p)
+        dt = (-tau_c) * np.log(p)
         t += dt
         ts.append(t)
     return ts
@@ -122,11 +121,8 @@ def generateJumpTimes(t_end, tau_c):
 # The heaviside function used is 1 at 0.
 def generateEta(ts, eta_0):
     def eta(t):
-        return ((-1) ** sumHeavisideMonotonic(t, ts) ) * eta_0
+        return ((-1) ** sumHeavisideMonotonic(t, ts)) * eta_0
     return eta
-
-def ezGenerateEta(t_end, tau_c, eta_0):
-    return generateEta(generateJumpTimes(t_end, tau_c), eta_0)
 
 # Can use takewhile over filter because monotonic
 def sumHeavisideMonotonic(t, ts):
@@ -141,15 +137,24 @@ def generateRho(rho_0, N, Us):
     return rho
 
 # Eq. 9
-# Generate unitary time evolutions
+# Generate unitary time evolution
 # Ignore time-ordering for now...
 def generateU_k(a, eta_k):
     def U_k(t):
-        a_, err1 = integrate.quad(a, 0, t)
-        eta_k_, err2 = integrate.quad(eta_k, 0, t)
-        H_ = -(1.j/hbar) * H_t(a_, eta_k_)
-        return expm(np.array(H_))
+        a_t, err1 = integrate.quad(a, 0, t)
+        eta_k_t, err2 = integrate.quad(eta_k, 0, t)
+        H_ = -(1.j/hbar) * H_t(a_t, eta_k_t)
+        # print("/.../")
+        # print(str(err1/a_t))
+        # print(str(err2/eta_k_t))
+        return expm(np.matrix(H_))
     return U_k
+
+# js = generateJumpTimes(15, 1)
+# e = generateEta(js, 1)
+# print([e(t/10.) for t in range(0, 110)])
+# et = integrate.quad(e, 0, 10)
+# print(et)
 
 # Generate a rho
 def ezGenerate_Rho(a, t_end, tau_c, eta_0, rho_0, N):
@@ -161,20 +166,8 @@ def ezGenerateU_k(a, t_end, tau_c, eta_0):
     return generateU_k(a, ezGenerateEta(t_end, tau_c, eta_0))
     # return generateU_k(a, eta_sys)
 
-# Integrate a 2x2 matrix
-# def integrateM2(M, t_0, t_f):
-#     row0 = [ integrate.quad(f, t_0, t_f) for f in M[0] ]
-#     row1 = [ integrate.quad(f, t_0, t_f) for f in M[1] ]
-#     return np.matrix([ row0, row1])
-# dumb implementation for now
-def integrateM2(M, t_0, t_f, steps):
-    t_ = t_0
-    M_ = M(t_0)
-    dt = ( t_f - t_0 ) / float(steps)
-    while t_ <= t_f:
-        t_ += dt
-        M_ += M(t_) * dt
-    return M_
+def ezGenerateEta(t_end, tau_c, eta_0):
+    return generateEta(generateJumpTimes(t_end, tau_c), eta_0)
 
 # Fidelity of a single transformation rho_0 -> rho_f
 def fixSingleTx(rho_0, N, Us, T, rho_f):
@@ -193,17 +186,35 @@ def fidSingleTxDirect(rho_f, rho, T):
 rho_0 = dm_1
 rho_f = dm_0
 eta_0 = Delta
-N = 1000 # number of RTN trajectories
-t_end = 32 / hoa # end of RTN
+N = 800 # number of RTN trajectories
+t_end = 42 * hoa # end of RTN
 
-tau_c_0 = 0.2 / hoa
-tau_c_f = 30. / hoa
-dtau_c = 1.2 / hoa
+tau_c_0 = 0.1 * hoa
+tau_c_f = 20. * hoa
+dtau_c = 1.0 * hoa
 tau_c = tau_c_0
 tau_cs = [tau_c]
 while tau_c < tau_c_f:
     tau_c += dtau_c
     tau_cs.append(tau_c)
+
+eta_0_a_max = eta_0 / a_max
+print("""
+    rho_0:
+{rho_0}
+    rho_f:
+{rho_f}
+    eta_0 / a_max:
+    {eta_0_a_max}
+    number of RTN trajectories:
+    {N}
+    end of RTN:
+    {t_end}
+    tau_c going from {tau_c_0} to {tau_c_f}
+    step size of {dtau_c}
+
+    Starting...
+""".format(**locals()))
 
 fids_pi = []
 fids_C = []
@@ -211,6 +222,7 @@ fids_SC = []
 
 start = time.time()
 for i in range(len(tau_cs)):
+    # if i % 15 is 0:
     print(str(i) + "/" + str(len(tau_cs)))
     tau_c = tau_cs[i]
 
