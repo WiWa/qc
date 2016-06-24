@@ -11,6 +11,7 @@ from scipy import integrate
 from scipy.constants import hbar, pi
 from scipy.linalg import expm
 from itertools import takewhile, repeat
+import linmax
 
 ###
 # Reproduction of:
@@ -29,7 +30,7 @@ sigmaZ = np.matrix([    [1., 0.]  ,
 
 
 ####
-
+hbar = 1.
 # Maximum amplitude of control field
 # set to hbar so that hbar/a_max = 1
 a_max = hbar
@@ -48,7 +49,8 @@ dm_1 = np.matrix([ [0, 0], cb_1 ]).T
 
 ### Pulses
 
-hoa = (hbar / a_max)
+# hoa = (hbar / a_max)
+hoa = 1.
 
 # Eq. 15
 # Pi pulse
@@ -158,25 +160,26 @@ def generateRho(rho_0, N, Us):
 # Eq. 9
 # Generate unitary time evolution
 # Ignore time-ordering for now...
-def generateU_k(a, eta_k, js):
+def generateU_k(a, eta_k):
     def U_k(t):
         # a_t, err1 = integrate.quad(a, 0, t)
         # eta_k_t, err2 = integrate.quad(eta_k, 0, t)
         # H_ = -(1.j/hbar) * H_t(a_t, eta_k_t)
         # return expm(np.matrix(H_))
         def G(t_):
-            return -(1.j/hbar) * H_t(a(t_), eta_k(t_))
-        Ss = stepForwardMats(G, 0., t, 100)
-        C = reduce(BCH, Ss)
-        # print(H_)
-        return expm(C)
-
-        # e_eta = expm(np.matrix(H_eta(eta_k_t)))
-        # A = np.matrix(-(1.j/hbar) * H_a(a_t))
-        # B = np.matrix(-(1.j/hbar) * H_eta(eta_k_t))
-        # C = BCH(A, B)
-        # print(C - A - B)
-        # return expm(np.matrix(C))
+            return np.array(-(1.j/hbar) * H_t(a(t_), eta_k(t_)))
+        # steps = 50
+        # ts = np.linspace(0., t, steps)
+        # dt = ts[1] - ts[0]
+        # Ss = [dt*-(1.j/hbar) * H_t(a(t_), eta_k(t_)) for t_ in ts]
+        # C = reduce(BCH, Ss)
+        # h_step = .5
+        # times = linmax.maketimes(0., t, stepsize=h_step)
+        steps = 200
+        times = linmax.maketimes(0., t, numsteps=steps)
+        S_mats = linmax.generate(G, times)
+        C = reduce(BCH, S_mats)
+        return linmax.powerexp(C)
     return U_k
 
 def stepForwardMats(G, t_0, t, steps):
@@ -199,10 +202,10 @@ def posDyson(a, eta, ts, t):
 
 # Baker-Campbell-Hausdorff approx
 def BCH(A, B):
-    c1 = (1/2.)*comm(A, B)
-    c2 = (1/12.)*comm(A, c1)
-    c3 = -(1/12.)*comm(B, c1)
-    c4 = -(1/24.)*comm(B, c2)
+    c1 = (1/2.)*linmax.commutator(A, B)
+    c2 = (1/12.)*linmax.commutator(A, c1)
+    c3 = -(1/12.)*linmax.commutator(B, c1)
+    c4 = -(1/24.)*linmax.commutator(B, c2)
     return A + B + c1 + c2 + c3 + c4
 
 # Commutator
@@ -217,12 +220,12 @@ def comm(A, B):
 # Generate a rho
 def ezGenerate_Rho(a, t_end, tau_c, eta_0, rho_0, N):
     Us = [ezGenerateU_k(a, t_end, tau_c, eta_0) for i in range(N)]
-    return generateRho(rho_0, N, Us)
+    return (generateRho(rho_0, N, Us), Us)
 
 # Generate a U_k
 def ezGenerateU_k(a, t_end, tau_c, eta_0):
     js = generateJumpTimes(t_end, tau_c)
-    return generateU_k(a, generateEta(js, eta_0), js)
+    return generateU_k(a, generateEta(js, eta_0))
     # return generateU_k(a, eta_sys)
 
 def ezGenerateEta(t_end, tau_c, eta_0):
@@ -252,11 +255,11 @@ def fidSingleTxFull(rho_0, rho_f, T, N, Us):
 rho_0 = dm_1
 rho_f = dm_0
 eta_0 = Delta
-N = 500 # number of RTN trajectories
-t_end = 17 * hoa # end of RTN
+N = 1500 # number of RTN trajectories
+t_end = 15 * hoa # end of RTN
 
-tau_c_0 = 0.3 * hoa
-tau_c_f = 16. * hoa
+tau_c_0 = 0.4 * hoa
+tau_c_f = 14. * hoa
 dtau_c = 0.7 * hoa
 tau_c = tau_c_0
 tau_cs = [tau_c]
@@ -293,19 +296,33 @@ for i in range(len(tau_cs)):
     sys.stdout.flush()
 
     tau_c = tau_cs[i]
+    js = generateJumpTimes(t_end, tau_c)
 
-    rho_pi = ezGenerate_Rho(a_pi, t_end, tau_c, eta_0, rho_0, N)
-    fid_pi = fidSingleTxDirect(rho_f, rho_pi, T_pi)
+    rho_pi, Us = ezGenerate_Rho(a_pi, t_end, tau_c, eta_0, rho_0, N)
+    # fid_pi = fidSingleTxDirect(rho_f, rho_pi, T_pi)
+    fid_pi = fidSingleTxFull(rho_0, rho_f, T_pi, N, Us)
+    # eta = generateEta(js, eta_0)
+    # def genUk(a, ps):
+    #     return generateU_kFast(a, eta, js, ps)
+
+    # Us = [genUk(a_pi, [0, pi, 2.*pi]) for i in range(N)]
+    # rho_pi = generateRho(rho_0, N, Us)
+    # fid_pi = fidSingleTxDirect(rho_f, rho_pi, T_pi)
     fids_pi.append(fid_pi)
 
-    rho_C = ezGenerate_Rho(a_C, t_end, tau_c, eta_0, rho_0, N)
-    fid_C = fidSingleTxDirect(rho_f, rho_C, T_C)
+    # rho_C = ezGenerate_Rho(a_C, t_end, tau_c, eta_0, rho_0, N)
+    # Us = [genUk(a_C, [0, pi/3., 2.*pi,13*pi/3.,13*pi]) for i in range(N)]
+    Us = [generateU_k(a_C, ezGenerateEta(t_end, tau_c, eta_0)) for i in range(N)]
+    rho_C = generateRho(rho_0, N, Us)
+    fid_C = fidSingleTxFull(rho_0, rho_f, T_C, N, Us)
     fids_C.append(fid_C)
 
     # Us = [ezGenerateU_k(a_C, t_end, tau_c, eta_0) for i in range(N)]
     # fids_C.append(fidSingleTxFull(rho_0,rho_f,T_C, N,Us))
 
-    rho_SC = ezGenerate_Rho(a_SC, t_end, tau_c, eta_0, rho_0, N)
+    rho_SC, us = ezGenerate_Rho(a_SC, t_end, tau_c, eta_0, rho_0, N)
+    # Us = [genUk(a_SC, [0, pi/3., 2.*pi,7*pi/3.,7*pi]) for i in range(N)]
+    # rho_SC = generateRho(rho_0, N, Us)
     fid_SC = fidSingleTxDirect(rho_f, rho_SC, T_SC)
     fids_SC.append(fid_SC)
 print("time taken: " + str(time.time() - start))
