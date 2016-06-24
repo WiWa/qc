@@ -10,7 +10,7 @@ from mod import (
 from scipy import integrate
 from scipy.constants import hbar, pi
 from scipy.linalg import expm
-from itertools import takewhile
+from itertools import takewhile, repeat
 
 ###
 # Reproduction of:
@@ -133,10 +133,24 @@ def generateEta(ts, eta_0):
 def sumHeavisideMonotonic(t, ts):
     return len([x for x in takewhile(lambda t_: t_ <= t,ts)])
 
+# time take = 269 without
+# cpus = 8
+# pool = Pool(processes=cpus)
+# def multiMap(Us, t):
+#     dec_Us = zip(Us, repeat(t))
+#     return pool.map(evalMat, dec_Us)
 # Eq. 8
+def evalMat(dec_U_k):
+    U_k, t = dec_U_k
+    return np.matrix(U_k(t))
 def generateRho(rho_0, N, Us):
     def rho(t):
         U_k_ts = [np.matrix(U_k(t)) for U_k in Us]
+        # dec_Us = zip(Us, repeat(t))
+
+        # U_k_ts = pool.map(evalMat, dec_Us)
+
+        # U_k_ts = pool.map(evalMat, Us)
         terms = [U_k_t * rho_0 * U_k_t.H for U_k_t in U_k_ts]
         return (1./N) * sum(terms)
     return rho
@@ -229,12 +243,12 @@ def fidSingleTxFull(rho_0, rho_f, T, N, Us):
 rho_0 = dm_1
 rho_f = dm_0
 eta_0 = Delta
-N = 2000 # number of RTN trajectories
+N = 800 # number of RTN trajectories
 t_end = 33 * hoa # end of RTN
 
 tau_c_0 = 0.2 * hoa
-tau_c_f = 20. * hoa
-dtau_c = 0.2 * hoa
+tau_c_f = 30. * hoa
+dtau_c = 1. * hoa
 tau_c = tau_c_0
 tau_cs = [tau_c]
 while tau_c < tau_c_f:
@@ -266,7 +280,9 @@ fids_SC = []
 start = time.time()
 for i in range(len(tau_cs)):
     # if i % 15 is 0:
-    print(str(i) + "/" + str(len(tau_cs)))
+    sys.stdout.write("\r"+str(i) + "/" + str(len(tau_cs)))
+    sys.stdout.flush()
+
     tau_c = tau_cs[i]
 
     rho_pi = ezGenerate_Rho(a_pi, t_end, tau_c, eta_0, rho_0, N)
@@ -290,7 +306,7 @@ plt.plot(tau_cs, fids_pi, 'b--', label="pi pulse")
 plt.plot(tau_cs, fids_C, 'r-', label="CORPSE pulse")
 plt.plot(tau_cs, fids_SC, 'r--', label="SCORPSE pulse")
 # plt.axis([0, 30, 0.975, 1])
-p.xlabel("tau_c / (hbar / a_max)")
-p.ylabel("fidelity \\phi(rho_f, rho_0)")
+plt.xlabel("tau_c / (hbar / a_max)")
+plt.ylabel("fidelity \\phi(rho_f, rho_0)")
 plt.legend(loc='best')
 plt.show()
