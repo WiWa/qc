@@ -160,13 +160,16 @@ def generateRho(rho_0, N, Us):
 # Ignore time-ordering for now...
 def generateU_k(a, eta_k, js):
     def U_k(t):
-        a_t, err1 = integrate.quad(a, 0, t)
-        eta_k_t, err2 = integrate.quad(eta_k, 0, t)
-        H_ = -(1.j/hbar) * H_t(a_t, eta_k_t)
-        return expm(np.matrix(H_))
-
-        # H_ = posDyson(a, eta_k, js, t)
-        # return H_
+        # a_t, err1 = integrate.quad(a, 0, t)
+        # eta_k_t, err2 = integrate.quad(eta_k, 0, t)
+        # H_ = -(1.j/hbar) * H_t(a_t, eta_k_t)
+        # return expm(np.matrix(H_))
+        def G(t_):
+            return -(1.j/hbar) * H_t(a(t_), eta_k(t_))
+        Ss = stepForwardMats(G, 0., t, 100)
+        C = reduce(BCH, Ss)
+        # print(H_)
+        return expm(C)
 
         # e_eta = expm(np.matrix(H_eta(eta_k_t)))
         # A = np.matrix(-(1.j/hbar) * H_a(a_t))
@@ -176,16 +179,22 @@ def generateU_k(a, eta_k, js):
         # return expm(np.matrix(C))
     return U_k
 
+def stepForwardMats(G, t_0, t, steps):
+    ts = np.linspace(t_0, t, steps)
+    dt = ts[1] - ts[0]
+    Ss = [dt*G(t_) for t_ in ts]
+    return Ss
+
 def posDyson(a, eta, ts, t):
     time_order = filter(lambda t_: t_ < t, ts)
     time_order.reverse()
-    H_ = np.matrix([cb_0, cb_1])
+    H_ = np.matrix([[1., 0.], [0., 1.]])
     for i in range(1, len(time_order)):
         t_prev = time_order[i - 1]
         t_next = time_order[i]
         a_, err2 = integrate.quad(a, t_prev, t_next)
-        eta_, err2 = integrate.quad(eta, 0., t)
-        H_ += np.matrix(H_a(a_)) + np.matrix(H_eta(eta_))
+        eta_, err2 = integrate.quad(eta, t_prev, t_next)
+        H_ *= np.matrix(H_a(a_)) + np.matrix(H_eta(eta_))
     return H_
 
 # Baker-Campbell-Hausdorff approx
@@ -243,12 +252,12 @@ def fidSingleTxFull(rho_0, rho_f, T, N, Us):
 rho_0 = dm_1
 rho_f = dm_0
 eta_0 = Delta
-N = 800 # number of RTN trajectories
-t_end = 33 * hoa # end of RTN
+N = 500 # number of RTN trajectories
+t_end = 17 * hoa # end of RTN
 
-tau_c_0 = 0.2 * hoa
-tau_c_f = 30. * hoa
-dtau_c = 1. * hoa
+tau_c_0 = 0.3 * hoa
+tau_c_f = 16. * hoa
+dtau_c = 0.7 * hoa
 tau_c = tau_c_0
 tau_cs = [tau_c]
 while tau_c < tau_c_f:
