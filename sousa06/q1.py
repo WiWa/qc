@@ -7,11 +7,17 @@ from mod import (
                 qc_dir,
                 unpy,
                 )
+import scipy
 from scipy import integrate
 from scipy.constants import hbar, pi
 from scipy.linalg import expm
 from itertools import takewhile, repeat
+from multiprocess import Pool
+from parallel import parallel
 import linmax
+import dill
+
+cpus = 4
 
 ###
 # Reproduction of:
@@ -147,40 +153,70 @@ def evalMat(dec_U_k):
     return np.matrix(U_k(t))
 def generateRho(rho_0, N, Us):
     def rho(t):
-        U_k_ts = [np.matrix(U_k(t)) for U_k in Us]
-        # dec_Us = zip(Us, repeat(t))
-
-        # U_k_ts = pool.map(evalMat, dec_Us)
-
-        # U_k_ts = pool.map(evalMat, Us)
-        terms = [U_k_t * rho_0 * U_k_t.H for U_k_t in U_k_ts]
+        def R(U_k):
+            U = np.matrix(U_k(t))
+            return U * rho_0 * U.H
+        # U_k_ts = [np.matrix(U_k(t)) for U_k in Us]
+        # terms = [U * rho_0 * U.H for U in U_k_ts]
+        terms = pool.map(R, Us)
         return (1./N) * sum(terms)
     return rho
 
+pool = Pool(processes=cpus)
 # Eq. 9
 # Generate unitary time evolution
 # Ignore time-ordering for now...
+def H_t2((a_t, eta_t)):
+    return 0.5 * a_t * sigmaX + 0.5 * eta_t * sigmaZ
+def w(a):
+    return 3
+
+U_count = [0]
 def generateU_k(a, eta_k):
     def U_k(t):
         # a_t, err1 = integrate.quad(a, 0, t)
         # eta_k_t, err2 = integrate.quad(eta_k, 0, t)
         # H_ = -(1.j/hbar) * H_t(a_t, eta_k_t)
         # return expm(np.matrix(H_))
+        start = time.time()
         def G(t_):
             return np.array(-(1.j/hbar) * H_t(a(t_), eta_k(t_)))
-        # steps = 50
-        # ts = np.linspace(0., t, steps)
-        # dt = ts[1] - ts[0]
+        steps = 400
+        ts = np.linspace(0., t, steps)
+        dt = ts[1] - ts[0]
+
         # Ss = [dt*-(1.j/hbar) * H_t(a(t_), eta_k(t_)) for t_ in ts]
         # C = reduce(BCH, Ss)
-        # h_step = .5
-        # times = linmax.maketimes(0., t, stepsize=h_step)
-        steps = 200
-        times = linmax.maketimes(0., t, numsteps=steps)
-        S_mats = linmax.generate(G, times)
-        C = reduce(BCH, S_mats)
-        return linmax.powerexp(C)
+        # SFG = StepForwardGenerator(a, eta_k, dt)
+        Ss = [G(t) for t in ts]
+        # print(type(Ss))
+        # print(Ss[0])
+        def BCH(A, B):
+            c1 = (1/2.)*comm(A, B)
+            c2 = (1/12.)*comm(A, c1)
+            c3 = -(1/12.)*comm(B, c1)
+            c4 = -(1/24.)*comm(B, c2)
+            return A + B + c1 + c2 + c3 + c4
+        def comm(A, B):
+            return (A * B) - (B * A)
+        C = reduce(BCH, Ss)
+        # U_count[0] += 1
+
+        end = time.time()
+        delts = str(end - start)
+        # sys.stdout.write("\rU++: " + str(U_count[0]) + "; " + delts)
+        # sys.stdout.flush()
+        # return linmax.powerexp(C)
+        return expm(C)
     return U_k
+
+class StepForwardGenerator(object):
+    def __init__(self, a, eta, dt):
+        self.a = a
+        self.eta = eta
+        self.dt = dt
+    def __call__(self, t):
+        return self.dt*-(1.j/hbar) * H_t(self.a(t), self.eta(t))
 
 def stepForwardMats(G, t_0, t, steps):
     ts = np.linspace(t_0, t, steps)
@@ -188,24 +224,12 @@ def stepForwardMats(G, t_0, t, steps):
     Ss = [dt*G(t_) for t_ in ts]
     return Ss
 
-def posDyson(a, eta, ts, t):
-    time_order = filter(lambda t_: t_ < t, ts)
-    time_order.reverse()
-    H_ = np.matrix([[1., 0.], [0., 1.]])
-    for i in range(1, len(time_order)):
-        t_prev = time_order[i - 1]
-        t_next = time_order[i]
-        a_, err2 = integrate.quad(a, t_prev, t_next)
-        eta_, err2 = integrate.quad(eta, t_prev, t_next)
-        H_ *= np.matrix(H_a(a_)) + np.matrix(H_eta(eta_))
-    return H_
-
 # Baker-Campbell-Hausdorff approx
 def BCH(A, B):
-    c1 = (1/2.)*linmax.commutator(A, B)
-    c2 = (1/12.)*linmax.commutator(A, c1)
-    c3 = -(1/12.)*linmax.commutator(B, c1)
-    c4 = -(1/24.)*linmax.commutator(B, c2)
+    c1 = (1/2.)*comm(A, B)
+    c2 = (1/12.)*comm(A, c1)
+    c3 = -(1/12.)*comm(B, c1)
+    c4 = -(1/24.)*comm(B, c2)
     return A + B + c1 + c2 + c3 + c4
 
 # Commutator
@@ -221,6 +245,9 @@ def comm(A, B):
 def ezGenerate_Rho(a, t_end, tau_c, eta_0, rho_0, N):
     Us = [ezGenerateU_k(a, t_end, tau_c, eta_0) for i in range(N)]
     return (generateRho(rho_0, N, Us), Us)
+
+def fastGenerateRho(a, t_end, tau_c, eta_0, rho_0, N):
+    pass
 
 # Generate a U_k
 def ezGenerateU_k(a, t_end, tau_c, eta_0):
@@ -255,12 +282,13 @@ def fidSingleTxFull(rho_0, rho_f, T, N, Us):
 rho_0 = dm_1
 rho_f = dm_0
 eta_0 = Delta
-N = 1500 # number of RTN trajectories
-t_end = 15 * hoa # end of RTN
 
 tau_c_0 = 0.4 * hoa
-tau_c_f = 14. * hoa
-dtau_c = 0.7 * hoa
+tau_c_f = 20. * hoa
+dtau_c = .5 * hoa
+N = 100 # number of RTN trajectories
+t_end = tau_c_f + 1. * hoa # end of RTN
+
 tau_c = tau_c_0
 tau_cs = [tau_c]
 while tau_c < tau_c_f:
@@ -290,10 +318,14 @@ fids_C = []
 fids_SC = []
 
 start = time.time()
+prev_time = -1
 for i in range(len(tau_cs)):
+    ministart = time.time()
     # if i % 15 is 0:
-    sys.stdout.write("\r"+str(i) + "/" + str(len(tau_cs)))
+    sys.stdout.write("\r"+str(i) + "/" + str(len(tau_cs)) + "  " + str(prev_time))
     sys.stdout.flush()
+    U_count[0] = 0
+    print("\n")
 
     tau_c = tau_cs[i]
     js = generateJumpTimes(t_end, tau_c)
@@ -312,8 +344,8 @@ for i in range(len(tau_cs)):
 
     # rho_C = ezGenerate_Rho(a_C, t_end, tau_c, eta_0, rho_0, N)
     # Us = [genUk(a_C, [0, pi/3., 2.*pi,13*pi/3.,13*pi]) for i in range(N)]
-    Us = [generateU_k(a_C, ezGenerateEta(t_end, tau_c, eta_0)) for i in range(N)]
-    rho_C = generateRho(rho_0, N, Us)
+    # Us = [generateU_k(a_C, ezGenerateEta(t_end, tau_c, eta_0)) for i in range(N)]
+    rho_C, Us = ezGenerate_Rho(a_C, t_end, tau_c, eta_0, rho_0, N)
     fid_C = fidSingleTxFull(rho_0, rho_f, T_C, N, Us)
     fids_C.append(fid_C)
 
@@ -325,6 +357,9 @@ for i in range(len(tau_cs)):
     # rho_SC = generateRho(rho_0, N, Us)
     fid_SC = fidSingleTxDirect(rho_f, rho_SC, T_SC)
     fids_SC.append(fid_SC)
+
+    miniend = time.time()
+    prev_time = miniend - ministart
 print("time taken: " + str(time.time() - start))
 
 fig = plt.figure()
