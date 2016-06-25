@@ -202,12 +202,11 @@ def w(a):
     return 3
 
 U_count = [0.]
-def generateU_k(a, eta_k):
+def generateU_k(a, eta_k, stepsize=0.03):
     def U_k(t):
         start = time.time()
-        stepsize = 0.03
-        steps = t / stepsize
-        steps = int(np.ceil(steps))
+
+        steps = int(np.ceil(t / stepsize))
         # steps = 700
         ts = np.linspace(0., t, steps)
         dt = ts[1] - ts[0]
@@ -284,17 +283,14 @@ def comm(A, B):
 # print(et)
 
 # Generate a rho
-def ezGenerate_Rho(a, t_end, tau_c, eta_0, rho_0, N):
-    Us = [ezGenerateU_k(a, t_end, tau_c, eta_0) for i in range(N)]
+def ezGenerate_Rho(a, t_end, tau_c, eta_0, rho_0, N, stepsize=0.03):
+    Us = [ezGenerateU_k(a, t_end, tau_c, eta_0, stepsize=stepsize) for i in range(N)]
     return (generateRho(rho_0, N, Us), Us)
 
-def fastGenerateRho(a, t_end, tau_c, eta_0, rho_0, N):
-    pass
-
 # Generate a U_k
-def ezGenerateU_k(a, t_end, tau_c, eta_0):
+def ezGenerateU_k(a, t_end, tau_c, eta_0, stepsize=0.03):
     js = generateJumpTimes(t_end, tau_c)
-    return generateU_k(a, generateEta(js, eta_0))
+    return generateU_k(a, generateEta(js, eta_0), stepsize=stepsize)
     # return generateU_k(a, eta_sys)
 
 def ezGenerateEta(t_end, tau_c, eta_0):
@@ -328,8 +324,9 @@ eta_0 = Delta
 tau_c_0 = 0.2 * hoa
 tau_c_f = 31. * hoa
 dtau_c = 0.42 * hoa
+t_end = tau_c_f + 0.42 * hoa # end of RTN
 N = 19200 # number of RTN trajectories
-t_end = tau_c_f + 0.5 * hoa # end of RTN
+stepsize = 0.02
 
 profiling = False
 
@@ -350,10 +347,13 @@ eta_0 / a_max:
     {eta_0_a_max}
 number of RTN trajectories:
     {N}
+Step-forward step size of:
+    {stepsize}
+tau_c going from {tau_c_0} to {tau_c_f}
+tau step size of:
+    {dtau_c}
 end of RTN:
     {t_end}
-tau_c going from {tau_c_0} to {tau_c_f}
-step size of {dtau_c}
 
 Starting...
 """.format(**locals()))
@@ -398,15 +398,15 @@ for i in range(len(tau_cs)):
     tau_c = tau_cs[i]
     js = generateJumpTimes(t_end, tau_c)
 
-    rho_pi, Us = ezGenerate_Rho(a_pi, t_end, tau_c, eta_0, rho_0, N)
+    rho_pi, Us = ezGenerate_Rho(a_pi, t_end, tau_c, eta_0, rho_0, N, stepsize)
     fid_pi = fidSingleTxDirect(rho_f, rho_pi, T_pi)
     fids_pi.append(fid_pi)
 
-    rho_C, Us = ezGenerate_Rho(a_C, t_end, tau_c, eta_0, rho_0, N)
+    rho_C, Us = ezGenerate_Rho(a_C, t_end, tau_c, eta_0, rho_0, N, stepsize)
     fid_C = fidSingleTxDirect(rho_f, rho_C, T_C)
     fids_C.append(fid_C)
 
-    rho_SC, us = ezGenerate_Rho(a_SC, t_end, tau_c, eta_0, rho_0, N)
+    rho_SC, us = ezGenerate_Rho(a_SC, t_end, tau_c, eta_0, rho_0, N, stepsize)
     fid_SC = fidSingleTxDirect(rho_f, rho_SC, T_SC)
     fids_SC.append(fid_SC)
 
