@@ -19,6 +19,9 @@ from multiprocess.dummy import Pool as ThreadPool
 import linmax
 import dill
 
+bch_time = [0.]
+g_time = [0.]
+eta_time = [0.]
 ###
 # Reproduction of:
 # High-fidelity one-qubit operations under random telegraph noise
@@ -134,6 +137,9 @@ def generateJumpTimes(t_end, tau_c):
 # The heaviside function used is 1 at 0.
 def generateEta(ts, eta_0):
     def eta(t):
+        # start = time.time()
+        # res = ((-1) ** sumHeavisideMonotonic(t, ts)) * eta_0
+        # eta_time[0] += time.time() - start
         return ((-1) ** sumHeavisideMonotonic(t, ts)) * eta_0
     return eta
 
@@ -170,8 +176,7 @@ def H_t2(a_t, eta_t):
 def w(a):
     return 3
 
-U_count = [0]
-
+U_count = [0.]
 def generateU_k(a, eta_k):
     def U_k(t):
         start = time.time()
@@ -182,7 +187,10 @@ def generateU_k(a, eta_k):
         dt = ts[1] - ts[0]
 
         def G(t_):
-            return dt * -(1.j/hbar) * H_t2(a(t_), eta_k(t_))
+            # start = time.time()
+            # res =
+            # g_time[0] += time.time() - start
+            return dt * -(1.j) * H_t2(a(t_), eta_k(t_))
 
         # C = np.array([[1,0],[0,1]])
         # Ss = [G(t) for t in ts]
@@ -213,6 +221,7 @@ def stepForwardMats(G, t_0, t, steps):
 
 # Baker-Campbell-Hausdorff approx
 def BCH(A, B, o5=False):
+    # start = time.time()
     c1 = (1/2.)*comm(A, B)
     c2 = (1/12.)*comm(A, c1)
     c3 = -(1/12.)*comm(B, c1)
@@ -221,6 +230,7 @@ def BCH(A, B, o5=False):
     if o5:
         c5 = -(1/720.)*(bch5(A, B) + bch5(B, A))
         res += c5
+    # bch_time[0] += time.time() - start
     return res
 
 def bch5(A, B):
@@ -280,7 +290,7 @@ eta_0 = Delta
 tau_c_0 = 0.42 * hoa
 tau_c_f = 31. * hoa
 dtau_c = 0.42 * hoa
-N = 6400 # number of RTN trajectories
+N = 200 # number of RTN trajectories
 t_end = tau_c_f + 0.5 * hoa # end of RTN
 
 tau_c = tau_c_0
@@ -323,8 +333,17 @@ for i in range(len(tau_cs)):
     # if i % 15 is 0:
     sys.stdout.write("\r"+str(i) + "/" + str(len(tau_cs)) + "  " + str(prev_time))
     sys.stdout.flush()
-    U_count[0] = 0
-    print("\n")
+
+    # print("""
+    # g time: {g_time[0]}
+    # eta time: {eta_time[0]}
+    # BCH time: {bch_time[0]}
+    # """.format(**locals()))
+    # print("\n")
+    # U_count[0] = 0
+    # eta_time[0] = 0.
+    # g_time[0] = 0.
+    # bch_time[0] = 0.
 
     tau_c = tau_cs[i]
     js = generateJumpTimes(t_end, tau_c)
