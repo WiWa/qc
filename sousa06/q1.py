@@ -14,6 +14,7 @@ from scipy.linalg import expm
 from itertools import takewhile, repeat
 from multiprocess import Pool
 from parallel import parallel
+from multiprocess.dummy import Pool as ThreadPool
 import linmax
 import dill
 
@@ -25,13 +26,13 @@ cpus = 4
 # Mikko Mottonen and Rogerio de Sousa
 ###
 
-sigmaX = np.matrix([    [0., 1.]  ,
+sigmaX = np.array([    [0., 1.]  ,
                         [1., 0.]  ])
 
-sigmaY = np.matrix([    [0.,-1.j] ,
+sigmaY = np.array([    [0.,-1.j] ,
                         [1.j, 0.] ])
 
-sigmaZ = np.matrix([    [1., 0.]  ,
+sigmaZ = np.array([    [1., 0.]  ,
                         [0.,-1.]  ])
 
 
@@ -50,8 +51,8 @@ cb_0 = np.array([1, 0])
 cb_1 = np.array([0, 1])
 
 # Density Matrices
-dm_0 = np.matrix([ cb_0, [0, 0] ]).T
-dm_1 = np.matrix([ [0, 0], cb_1 ]).T
+dm_0 = np.array([ cb_0, [0, 0] ]).T
+dm_1 = np.array([ [0, 0], cb_1 ]).T
 
 ### Pulses
 
@@ -150,19 +151,18 @@ def sumHeavisideMonotonic(t, ts):
 # Eq. 8
 def evalMat(dec_U_k):
     U_k, t = dec_U_k
-    return np.matrix(U_k(t))
+    return np.array(U_k(t))
 def generateRho(rho_0, N, Us):
     def rho(t):
         def R(U_k):
-            U = np.matrix(U_k(t))
-            return U * rho_0 * U.H
-        # U_k_ts = [np.matrix(U_k(t)) for U_k in Us]
-        # terms = [U * rho_0 * U.H for U in U_k_ts]
+            U = np.array(U_k(t))
+            return np.dot(np.dot(U, rho_0), U.conj().T)
+        # U_k_ts = [np.array(U_k(t)) for U_k in Us]
+        # terms = [U * rho_0 * U.conj().T for U in U_k_ts]
         terms = pool.map(R, Us)
         return (1./N) * sum(terms)
     return rho
 
-pool = Pool(processes=cpus)
 # Eq. 9
 # Generate unitary time evolution
 # Ignore time-ordering for now...
@@ -172,36 +172,24 @@ def w(a):
     return 3
 
 U_count = [0]
+
 def generateU_k(a, eta_k):
     def U_k(t):
-        # a_t, err1 = integrate.quad(a, 0, t)
-        # eta_k_t, err2 = integrate.quad(eta_k, 0, t)
-        # H_ = -(1.j/hbar) * H_t(a_t, eta_k_t)
-        # return expm(np.matrix(H_))
         start = time.time()
-        def G(t_):
-            return np.array(-(1.j/hbar) * H_t(a(t_), eta_k(t_)))
         steps = 400
         ts = np.linspace(0., t, steps)
         dt = ts[1] - ts[0]
 
-        # Ss = [dt*-(1.j/hbar) * H_t(a(t_), eta_k(t_)) for t_ in ts]
-        # C = reduce(BCH, Ss)
-        # SFG = StepForwardGenerator(a, eta_k, dt)
+        def G(t_):
+            return dt * -(1.j/hbar) * H_t(a(t_), eta_k(t_))
+
         Ss = [G(t) for t in ts]
-        # print(type(Ss))
         # print(Ss[0])
-        def BCH(A, B):
-            c1 = (1/2.)*comm(A, B)
-            c2 = (1/12.)*comm(A, c1)
-            c3 = -(1/12.)*comm(B, c1)
-            c4 = -(1/24.)*comm(B, c2)
-            return A + B + c1 + c2 + c3 + c4
-        def comm(A, B):
-            return (A * B) - (B * A)
         C = reduce(BCH, Ss)
+        # C = sum(Ss)
         # U_count[0] += 1
 
+        # print(C)
         end = time.time()
         delts = str(end - start)
         # sys.stdout.write("\rU++: " + str(U_count[0]) + "; " + delts)
@@ -209,14 +197,6 @@ def generateU_k(a, eta_k):
         # return linmax.powerexp(C)
         return expm(C)
     return U_k
-
-class StepForwardGenerator(object):
-    def __init__(self, a, eta, dt):
-        self.a = a
-        self.eta = eta
-        self.dt = dt
-    def __call__(self, t):
-        return self.dt*-(1.j/hbar) * H_t(self.a(t), self.eta(t))
 
 def stepForwardMats(G, t_0, t, steps):
     ts = np.linspace(t_0, t, steps)
@@ -234,7 +214,7 @@ def BCH(A, B):
 
 # Commutator
 def comm(A, B):
-    return (A * B) - (B * A)
+    return np.dot(A, B) - np.dot(B, A)
 # js = generateJumpTimes(15, 1)
 # e = generateEta(js, 1)
 # print([e(t/10.) for t in range(0, 110)])
@@ -266,12 +246,12 @@ def fidSingleTx(rho_0, N, Us, T, rho_f):
 # Eq. 10
 # Fidelity of a single transformation rho_0 -> rho_f
 def fidSingleTxDirect(rho_f, rho, T):
-    return np.trace(rho_f.H * rho(T))
+    return np.trace(np.dot(rho_f.conj().T, rho(T)))
 
 # Eq. 11
 def fidSingleTxFull(rho_0, rho_f, T, N, Us):
-    U_k_ts = [np.matrix(U_k(T)) for U_k in Us]
-    mats = [rho_f.H * U_k_t * rho_0 * U_k_t.H for U_k_t in U_k_ts]
+    U_k_ts = [np.array(U_k(T)) for U_k in Us]
+    mats = [np.dot(np.dot(rho_f.conj().T, U_k_t), np.dot(rho_0, U_k_t.conj().T)) for U_k_t in U_k_ts]
     terms = [np.trace(mat) for mat in mats]
     return (1./N) * sum(terms)
 
@@ -284,9 +264,9 @@ rho_f = dm_0
 eta_0 = Delta
 
 tau_c_0 = 0.4 * hoa
-tau_c_f = 20. * hoa
+tau_c_f = 10. * hoa
 dtau_c = .5 * hoa
-N = 100 # number of RTN trajectories
+N = 300 # number of RTN trajectories
 t_end = tau_c_f + 1. * hoa # end of RTN
 
 tau_c = tau_c_0
@@ -317,6 +297,7 @@ fids_pi = []
 fids_C = []
 fids_SC = []
 
+pool = Pool(processes=cpus)
 start = time.time()
 prev_time = -1
 for i in range(len(tau_cs)):
