@@ -21,21 +21,26 @@ import dill
 
 bch_time = [0.]
 g_time = [0.]
+a_time = [0.]
 eta_time = [0.]
+h_time = [0.]
+th_time = [0.]
 ###
 # Reproduction of:
 # High-fidelity one-qubit operations under random telegraph noise
 # Mikko Mottonen and Rogerio de Sousa
 ###
 
+profiling = True
+
 sigmaX = np.array([    [0., 1.]  ,
-                        [1., 0.]  ])
+                        [1., 0.]  ], np.complex128)
 
 sigmaY = np.array([    [0.,-1.j] ,
-                        [1.j, 0.] ])
+                        [1.j, 0.] ], np.complex128)
 
 sigmaZ = np.array([    [1., 0.]  ,
-                        [0.,-1.]  ])
+                        [0.,-1.]  ], np.complex128)
 
 
 ####
@@ -49,12 +54,12 @@ a_max = hbar
 Delta = 0.125 * a_max
 
 # Computational Bases
-cb_0 = np.array([1, 0])
-cb_1 = np.array([0, 1])
+cb_0 = np.array([1, 0], np.complex128)
+cb_1 = np.array([0, 1], np.complex128)
 
 # Density Matrices
-dm_0 = np.array([ cb_0, [0, 0] ]).T
-dm_1 = np.array([ [0, 0], cb_1 ]).T
+dm_0 = np.array([ cb_0, [0, 0] ], np.complex128).T
+dm_1 = np.array([ [0, 0], cb_1 ], np.complex128).T
 
 ### Pulses
 
@@ -108,6 +113,14 @@ def generateH(a, eta):
         return H_t(a(t), eta(t))
     return H_
 
+def H_p(a, eta, t):
+    if profiling:
+        start = time.time()
+        a_t = a(t)
+        a_time[0] += time.time() - start
+        return H_t2(a_t, eta(t))
+    return H_t2(a(t), eta(t))
+
 # Evaluate H given pre-evaluated a(t) and eta(t)
 def H_t(a_t, eta_t):
     return H_a(a_t) + H_eta(eta_t)
@@ -137,9 +150,11 @@ def generateJumpTimes(t_end, tau_c):
 # The heaviside function used is 1 at 0.
 def generateEta(ts, eta_0):
     def eta(t):
-        # start = time.time()
-        # res = ((-1) ** sumHeavisideMonotonic(t, ts)) * eta_0
-        # eta_time[0] += time.time() - start
+        if profiling:
+            start = time.time()
+            res = ((-1) ** sumHeavisideMonotonic(t, ts)) * eta_0
+            eta_time[0] += time.time() - start
+            return res
         return ((-1) ** sumHeavisideMonotonic(t, ts)) * eta_0
     return eta
 
@@ -164,7 +179,10 @@ def generateRho(rho_0, N, Us):
             return np.dot(np.dot(U, rho_0), U.conj().T)
         # U_k_ts = [np.array(U_k(t)) for U_k in Us]
         # terms = [U * rho_0 * U.conj().T for U in U_k_ts]
-        terms = pool.map(R, Us)
+        if profiling:
+            terms = map(R, Us)
+        else:
+            terms = pool.map(R, Us)
         return (1./N) * sum(terms)
     return rho
 
@@ -172,6 +190,11 @@ def generateRho(rho_0, N, Us):
 # Generate unitary time evolution
 # Ignore time-ordering for now...
 def H_t2(a_t, eta_t):
+    if profiling:
+        start = time.time()
+        res = 0.5 * a_t * sigmaX + 0.5 * eta_t * sigmaZ
+        h_time[0] += time.time() - start
+        return res
     return 0.5 * a_t * sigmaX + 0.5 * eta_t * sigmaZ
 def w(a):
     return 3
@@ -185,11 +208,17 @@ def generateU_k(a, eta_k):
         steps = int(np.ceil(steps))
         ts = np.linspace(0., t, steps)
         dt = ts[1] - ts[0]
-
+        cvec = np.array(dt * -(1j), np.complex128)
         def G(t_):
-            # start = time.time()
-            # res =
-            # g_time[0] += time.time() - start
+            if profiling:
+                start = time.time()
+                hp = H_p(a, eta_k, t_)
+                teatime = time.time()
+                th_time[0] += teatime - start
+                # print(hp)
+                res = np.dot(cvec, hp)
+                g_time[0] += time.time() - teatime
+                return res
             return dt * -(1.j) * H_t2(a(t_), eta_k(t_))
 
         # C = np.array([[1,0],[0,1]])
@@ -219,18 +248,25 @@ def stepForwardMats(G, t_0, t, steps):
     Ss = [dt*G(t_) for t_ in ts]
     return Ss
 
+k1 = np.array(1/2.,np.complex128)
+k2 = np.array(1/12.,np.complex128)
+k3 = np.array(-1/12.,np.complex128)
+k4 = np.array(-1/24.,np.complex128)
+k5 = np.array(-1/720.,np.complex128)
 # Baker-Campbell-Hausdorff approx
 def BCH(A, B, o5=False):
-    # start = time.time()
-    c1 = (1/2.)*comm(A, B)
-    c2 = (1/12.)*comm(A, c1)
-    c3 = -(1/12.)*comm(B, c1)
-    c4 = -(1/24.)*comm(B, c2)
+    start = time.time()
+
+    c1 = np.dot(k1,comm(A, B))
+    c2 = np.dot(k2,comm(A, c1))
+    c3 = np.dot(k3,comm(B, c1))
+    c4 = np.dot(k4,comm(B, c2))
     res = A + B + c1 + c2 + c3 + c4
     if o5:
-        c5 = -(1/720.)*(bch5(A, B) + bch5(B, A))
+        c5 = np.dot(k5,(bch5(A, B) + bch5(B, A)))
         res += c5
-    # bch_time[0] += time.time() - start
+    if profiling:
+        bch_time[0] += time.time() - start
     return res
 
 def bch5(A, B):
@@ -274,7 +310,7 @@ def fidSingleTxDirect(rho_f, rho, T):
 
 # Eq. 11
 def fidSingleTxFull(rho_0, rho_f, T, N, Us):
-    U_k_ts = [np.array(U_k(T)) for U_k in Us]
+    U_k_ts = [np.array(U_k(T), np.complex128) for U_k in Us]
     mats = [np.dot(np.dot(rho_f.conj().T, U_k_t), np.dot(rho_0, U_k_t.conj().T)) for U_k_t in U_k_ts]
     terms = [np.trace(mat) for mat in mats]
     return (1./N) * sum(terms)
@@ -322,9 +358,12 @@ fids_pi = []
 fids_C = []
 fids_SC = []
 
+profiling = True
 np.random.seed()
 cpus = 8
-pool = Pool(processes=cpus)
+if not profiling:
+    pool = Pool(processes=cpus)
+
 
 start = time.time()
 prev_time = -1
@@ -334,16 +373,23 @@ for i in range(len(tau_cs)):
     sys.stdout.write("\r"+str(i) + "/" + str(len(tau_cs)) + "  " + str(prev_time))
     sys.stdout.flush()
 
-    # print("""
-    # g time: {g_time[0]}
-    # eta time: {eta_time[0]}
-    # BCH time: {bch_time[0]}
-    # """.format(**locals()))
-    # print("\n")
-    # U_count[0] = 0
-    # eta_time[0] = 0.
-    # g_time[0] = 0.
-    # bch_time[0] = 0.
+    if profiling:
+        print("""
+        g time: {g_time[0]}
+        a time: {a_time[0]}
+        eta time: {eta_time[0]}
+        h time: {h_time[0]}
+        th time: {th_time[0]}
+        BCH time: {bch_time[0]}
+        """.format(**locals()))
+        print("\n")
+        U_count[0] = 0
+        a_time[0] = 0.
+        eta_time[0] = 0.
+        g_time[0] = 0.
+        bch_time[0] = 0.
+        h_time[0] = 0.
+        th_time[0] = 0.
 
     tau_c = tau_cs[i]
     js = generateJumpTimes(t_end, tau_c)

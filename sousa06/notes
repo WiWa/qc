@@ -28,3 +28,23 @@ eta_end 31.5
     g time: 2.72327780724
     eta time: 0.335755825043
     BCH time: 4.53322601318
+
+
+WTF?
+4/74  7.7277610302
+        g time: 1.11982750893
+        a time: 0.283215761185
+        eta time: 0.367708206177
+        h time: 0.823571681976
+        th time: 1.68276047707
+        BCH time: 4.43804454803
+
+(th = total to calc H ~~ a + eta + h)
+g time is massive! all its doing is multiplication!
+
+it seems that imaginary multiplication is hard?
+put np.complex128 in all np.array so less conversion on the fly?
+cvec = np.array(dt * -(1j), np.complex128)
+and then multiplying this; much much faster
+
+vectorizing BCH constants helped too!
