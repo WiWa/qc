@@ -18,8 +18,6 @@ from multiprocess.dummy import Pool as ThreadPool
 import linmax
 import dill
 
-cpus = 4
-
 ###
 # Reproduction of:
 # High-fidelity one-qubit operations under random telegraph noise
@@ -212,6 +210,9 @@ def BCH(A, B):
     c4 = -(1/24.)*comm(B, c2)
     return A + B + c1 + c2 + c3 + c4
 
+def bch5(A, B):
+    return comm(B,comm(B,comm(B,comm(B,A))))
+
 # Commutator
 def comm(A, B):
     return np.dot(A, B) - np.dot(B, A)
@@ -297,7 +298,9 @@ fids_pi = []
 fids_C = []
 fids_SC = []
 
+cpus = 8
 pool = Pool(processes=cpus)
+
 start = time.time()
 prev_time = -1
 for i in range(len(tau_cs)):
@@ -312,30 +315,14 @@ for i in range(len(tau_cs)):
     js = generateJumpTimes(t_end, tau_c)
 
     rho_pi, Us = ezGenerate_Rho(a_pi, t_end, tau_c, eta_0, rho_0, N)
-    # fid_pi = fidSingleTxDirect(rho_f, rho_pi, T_pi)
-    fid_pi = fidSingleTxFull(rho_0, rho_f, T_pi, N, Us)
-    # eta = generateEta(js, eta_0)
-    # def genUk(a, ps):
-    #     return generateU_kFast(a, eta, js, ps)
-
-    # Us = [genUk(a_pi, [0, pi, 2.*pi]) for i in range(N)]
-    # rho_pi = generateRho(rho_0, N, Us)
-    # fid_pi = fidSingleTxDirect(rho_f, rho_pi, T_pi)
+    fid_pi = fidSingleTxDirect(rho_f, rho_pi, T_pi)
     fids_pi.append(fid_pi)
 
-    # rho_C = ezGenerate_Rho(a_C, t_end, tau_c, eta_0, rho_0, N)
-    # Us = [genUk(a_C, [0, pi/3., 2.*pi,13*pi/3.,13*pi]) for i in range(N)]
-    # Us = [generateU_k(a_C, ezGenerateEta(t_end, tau_c, eta_0)) for i in range(N)]
     rho_C, Us = ezGenerate_Rho(a_C, t_end, tau_c, eta_0, rho_0, N)
-    fid_C = fidSingleTxFull(rho_0, rho_f, T_C, N, Us)
+    fid_C = fidSingleTxDirect(rho_f, rho_C, T_C)
     fids_C.append(fid_C)
 
-    # Us = [ezGenerateU_k(a_C, t_end, tau_c, eta_0) for i in range(N)]
-    # fids_C.append(fidSingleTxFull(rho_0,rho_f,T_C, N,Us))
-
     rho_SC, us = ezGenerate_Rho(a_SC, t_end, tau_c, eta_0, rho_0, N)
-    # Us = [genUk(a_SC, [0, pi/3., 2.*pi,7*pi/3.,7*pi]) for i in range(N)]
-    # rho_SC = generateRho(rho_0, N, Us)
     fid_SC = fidSingleTxDirect(rho_f, rho_SC, T_SC)
     fids_SC.append(fid_SC)
 
