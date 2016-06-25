@@ -11,6 +11,7 @@ import scipy
 from scipy import integrate
 from scipy.constants import hbar, pi
 from scipy.linalg import expm
+from scipy.interpolate import spline
 from itertools import takewhile, repeat
 from multiprocess import Pool
 from parallel import parallel
@@ -164,7 +165,7 @@ def generateRho(rho_0, N, Us):
 # Eq. 9
 # Generate unitary time evolution
 # Ignore time-ordering for now...
-def H_t2((a_t, eta_t)):
+def H_t2(a_t, eta_t):
     return 0.5 * a_t * sigmaX + 0.5 * eta_t * sigmaZ
 def w(a):
     return 3
@@ -174,16 +175,24 @@ U_count = [0]
 def generateU_k(a, eta_k):
     def U_k(t):
         start = time.time()
-        steps = 400
+        stepsize = 0.02
+        steps = t / stepsize
+        steps = int(np.ceil(steps))
         ts = np.linspace(0., t, steps)
         dt = ts[1] - ts[0]
 
         def G(t_):
-            return dt * -(1.j/hbar) * H_t(a(t_), eta_k(t_))
+            return dt * -(1.j/hbar) * H_t2(a(t_), eta_k(t_))
 
-        Ss = [G(t) for t in ts]
-        # print(Ss[0])
-        C = reduce(BCH, Ss)
+        # C = np.array([[1,0],[0,1]])
+        # Ss = [G(t) for t in ts]
+        # C = reduce(BCH, Ss)
+        C = G(ts[0])
+        for i in range(1, len(ts)):
+            # G_avg = 0.5 * (G(ts[i-1]) + G(ts[i]))
+            C = BCH(C, G(ts[i]))
+
+
         # C = sum(Ss)
         # U_count[0] += 1
 
@@ -203,12 +212,16 @@ def stepForwardMats(G, t_0, t, steps):
     return Ss
 
 # Baker-Campbell-Hausdorff approx
-def BCH(A, B):
+def BCH(A, B, o5=False):
     c1 = (1/2.)*comm(A, B)
     c2 = (1/12.)*comm(A, c1)
     c3 = -(1/12.)*comm(B, c1)
     c4 = -(1/24.)*comm(B, c2)
-    return A + B + c1 + c2 + c3 + c4
+    res = A + B + c1 + c2 + c3 + c4
+    if o5:
+        c5 = -(1/720.)*(bch5(A, B) + bch5(B, A))
+        res += c5
+    return res
 
 def bch5(A, B):
     return comm(B,comm(B,comm(B,comm(B,A))))
@@ -264,11 +277,11 @@ rho_0 = dm_1
 rho_f = dm_0
 eta_0 = Delta
 
-tau_c_0 = 0.4 * hoa
-tau_c_f = 10. * hoa
-dtau_c = .5 * hoa
-N = 300 # number of RTN trajectories
-t_end = tau_c_f + 1. * hoa # end of RTN
+tau_c_0 = 0.42 * hoa
+tau_c_f = 31. * hoa
+dtau_c = 0.42 * hoa
+N = 6400 # number of RTN trajectories
+t_end = tau_c_f + 0.5 * hoa # end of RTN
 
 tau_c = tau_c_0
 tau_cs = [tau_c]
@@ -276,6 +289,7 @@ while tau_c < tau_c_f:
     tau_c += dtau_c
     tau_cs.append(tau_c)
 
+# tau_cs = [0.4, 1.8, 3., 5., 10.]
 eta_0_a_max = eta_0 / a_max
 print("""
 rho_0:
@@ -298,6 +312,7 @@ fids_pi = []
 fids_C = []
 fids_SC = []
 
+np.random.seed()
 cpus = 8
 pool = Pool(processes=cpus)
 
@@ -331,11 +346,26 @@ for i in range(len(tau_cs)):
 print("time taken: " + str(time.time() - start))
 
 fig = plt.figure()
-plt.plot(tau_cs, fids_pi, 'b--', label="pi pulse")
-plt.plot(tau_cs, fids_C, 'r-', label="CORPSE pulse")
-plt.plot(tau_cs, fids_SC, 'r--', label="SCORPSE pulse")
+
+np.savetxt("data/fids_pi.txt", fids_pi)
+np.savetxt("data/fids_C.txt", fids_C)
+np.savetxt("data/fids_SC.txt", fids_SC)
+
+xnew = np.linspace(tau_cs[0],tau_cs[-1],100)
+fids_pi = spline(tau_cs, fids_pi, xnew)
+fids_C = spline(tau_cs, fids_C, xnew)
+fids_SC = spline(tau_cs, fids_SC, xnew)
+
+plt.plot(xnew, fids_pi, 'b--', label="pi pulse")
+plt.plot(xnew, fids_C, 'r-', label="CORPSE pulse")
+plt.plot(xnew, fids_SC, 'r--', label="SCORPSE pulse")
 # plt.axis([0, 30, 0.975, 1])
 plt.xlabel("tau_c / (hbar / a_max)")
 plt.ylabel("fidelity \\phi(rho_f, rho_0)")
 plt.legend(loc='best')
+
+# smooth_ax = p.axes([0.8, 0.025, 0.1, 0.04])
+# smooth_btn = Button(smooth_ax, 'Smooth', color=axcolor, hovercolor='0.975')
+# smooth_btn.on_clicked(smooth)
+
 plt.show()
