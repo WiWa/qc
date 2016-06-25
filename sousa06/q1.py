@@ -70,7 +70,7 @@ hoa = 1.
 # Pi pulse
 T_pi = pi * hoa
 def a_pi(t):
-    if 0 < t and t < T_pi:
+    if 0 <= t and t <= T_pi:
         return a_max
     return 0
 
@@ -78,7 +78,7 @@ def a_pi(t):
 # CORPSE
 T_C = (13 * pi / 3) * hoa
 def a_C(t):
-    if t < 0:
+    if t <= 0:
         return 0
     if t < ((pi / 3) * hoa):
         return a_max
@@ -92,7 +92,7 @@ def a_C(t):
 # SCORPSE, i.e. Short CORPSE
 T_SC = (7 * pi / 3) * hoa
 def a_SC(t):
-    if t < 0:
+    if t <= 0:
         return 0
     if t < ((pi / 3) * hoa):
         return -a_max
@@ -150,6 +150,8 @@ def generateJumpTimes(t_end, tau_c):
 # The heaviside function used is 1 at 0.
 def generateEta(ts, eta_0):
     def eta(t):
+        if t < ts[0]:
+            return eta_0
         if profiling:
             start = time.time()
             res = ((-1) ** sumHeavisideMonotonic(t, ts)) * eta_0
@@ -203,9 +205,10 @@ U_count = [0.]
 def generateU_k(a, eta_k):
     def U_k(t):
         start = time.time()
-        stepsize = 0.02
+        stepsize = 0.03
         steps = t / stepsize
         steps = int(np.ceil(steps))
+        # steps = 700
         ts = np.linspace(0., t, steps)
         dt = ts[1] - ts[0]
         cvec = np.array(dt * -(1j), np.complex128)
@@ -215,7 +218,6 @@ def generateU_k(a, eta_k):
                 hp = H_p(a, eta_k, t_)
                 teatime = time.time()
                 th_time[0] += teatime - start
-                # print(hp)
                 res = np.dot(cvec, hp)
                 g_time[0] += time.time() - teatime
                 return res
@@ -323,11 +325,13 @@ rho_0 = dm_1
 rho_f = dm_0
 eta_0 = Delta
 
-tau_c_0 = 0.42 * hoa
+tau_c_0 = 0.2 * hoa
 tau_c_f = 31. * hoa
 dtau_c = 0.42 * hoa
-N = 200 # number of RTN trajectories
+N = 19200 # number of RTN trajectories
 t_end = tau_c_f + 0.5 * hoa # end of RTN
+
+profiling = False
 
 tau_c = tau_c_0
 tau_cs = [tau_c]
@@ -358,7 +362,6 @@ fids_pi = []
 fids_C = []
 fids_SC = []
 
-profiling = True
 np.random.seed()
 cpus = 8
 if not profiling:
@@ -371,6 +374,7 @@ for i in range(len(tau_cs)):
     ministart = time.time()
     # if i % 15 is 0:
     sys.stdout.write("\r"+str(i) + "/" + str(len(tau_cs)) + "  " + str(prev_time))
+    print("\n")
     sys.stdout.flush()
 
     if profiling:
