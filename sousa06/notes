@@ -48,3 +48,39 @@ cvec = np.array(dt * -(1j), np.complex128)
 and then multiplying this; much much faster
 
 vectorizing BCH constants helped too!
+
+[performance]
+  dtau = 0.42
+  N = 19200
+  stepsize = 0.25
+  [generateU_k with map]
+    0/75  -1
+
+    1/75  278.110649109
+
+    2/75  224.268664122
+
+    3/75  144.981609106
+
+    4/75  195.538531065
+
+    5/75  199.715426922
+
+    6/75  133.922813892
+
+    ... 11999 secs
+
+  [generateU_k with repeat]
+    0/75  -1
+
+    1/75  130.019052029
+
+    2/75  191.61427021
+
+    3/75  162.758250952
+
+    4/75  152.01434207
+
+    5/75  158.473289013
+
+    6/75  162.708988905

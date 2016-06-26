@@ -284,7 +284,8 @@ def comm(A, B):
 
 # Generate a rho
 def ezGenerate_Rho(a, t_end, tau_c, eta_0, rho_0, N, stepsize=0.03):
-    Us = [ezGenerateU_k(a, t_end, tau_c, eta_0, stepsize=stepsize) for i in range(N)]
+    # Us = [ezGenerateU_k(a, t_end, tau_c, eta_0, stepsize=stepsize) for i in range(N)]
+    Us = repeat(ezGenerateU_k(a, t_end, tau_c, eta_0, stepsize=stepsize),N)
     return (generateRho(rho_0, N, Us), Us)
 
 # Generate a U_k
@@ -323,10 +324,14 @@ eta_0 = Delta
 
 tau_c_0 = 0.2 * hoa
 tau_c_f = 31. * hoa
+###
+# Performance Params
+###
 dtau_c = 0.42 * hoa
-t_end = tau_c_f + 0.42 * hoa # end of RTN
 N = 19200 # number of RTN trajectories
-stepsize = 0.02
+stepsize = 0.025 # Step-forward matrices step size
+###
+t_end = tau_c_f + 0.42 * hoa # end of RTN
 
 profiling = False
 
