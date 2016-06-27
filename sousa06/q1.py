@@ -32,7 +32,8 @@ th_time = [0.]
 ###
 
 profiling = False
-parallel = True
+parallel = (not profiling) and True
+
 
 sigmaX = np.array([    [0., 1.]  ,
                         [1., 0.]  ], np.complex128)
@@ -182,7 +183,7 @@ def generateRho(rho_0, N, Us):
             return np.dot(np.dot(U, rho_0), U.conj().T)
         # U_k_ts = [np.array(U_k(t)) for U_k in Us]
         # terms = [U * rho_0 * U.conj().T for U in U_k_ts]
-        if profiling and parallel:
+        if profiling or not parallel:
             terms = map(R, Us)
         else:
             terms = pool.map(R, Us)
@@ -342,9 +343,9 @@ def grad_phi_am(T, N, m, Us_mk, rho_0, rho_f):
     delta_t = T / n
     c = np.array((-1.j/2) * delta_t / N)
 
-    # terms = []
+    terms = []
     res = 0
-    for k in range(N):
+    def makeTerm(k):
         U_k = Us_mk[k]
         Us_nm_k = U_k[m:(n-1)]
         # Us_nm_k.reverse()
@@ -360,25 +361,31 @@ def grad_phi_am(T, N, m, Us_mk, rho_0, rho_f):
         lambda_H = lambda_mk.conj().T
         rho_mk = reduce(np.dot, [U_m1_k, rho_0, U_m1_kH])
         term = np.trace(np.dot(lambda_H, comm(sigmaX, rho_mk)))
-        res += term
-    # res = sum(terms)
+        return term
+    if parallel:
+        terms = pool.map(makeTerm, range(N))
+    else:
+        terms = map(makeTerm, range(N))
+    res = sum(terms)
     res = c * res
     return res
 
 def GRAPE(T, n, N, rho_0, rho_f, tau_c, eta_0, stepsize, amps, epsilon=0.01):
-    print("grape step!")
     pulses = buildGrapePulses(amps, T)
     ts = np.linspace(0., T, n+1)
     Us_k = [] # Every U_k is actually a list of U_m
     new_amps = []
+    def genUs_m(m):
+        t0 = ts[m]
+        te = ts[m+1]
+        t_avg = (t0 + te) / 2.
+        U_m = ezGenerateU_k(pulses[m], te, tau_c, eta_0, stepsize)(t_avg)
+        return U_m
     for k in range(N):
-        Us_m = []
-        for m in range(n):
-            t0 = ts[m]
-            te = ts[m+1]
-            t_avg = (t0 + te) / 2.
-            U_m = ezGenerateU_k(pulses[m], te, tau_c, eta_0, stepsize)(t_avg)
-            Us_m.append(U_m)
+        if not profiling and parallel:
+            Us_m = pool.map(genUs_m, range(n))
+        else:
+            Us_m = map(genUs_m, range(n))
         Us_k.append(Us_m)
     for m in range(n):
         a_m = amps[m]
@@ -427,14 +434,14 @@ tau_c_f = 16. * hoa
 ###
 # Performance Params
 ###
-dtau_c = 0.82 * hoa
-N = 100 # number of RTN trajectories
-stepsize = 0.10 # Step-forward matrices step size
+dtau_c = 0.42 * hoa
+N = 400 # number of RTN trajectories
+stepsize = 0.03 # Step-forward matrices step size
 
 T_G = 4 * hoa # sousa figure 2
-n = 5 # number of different pulse amplitudes
-epsilon = 0.04 # amount each gradient step can influence amps
-grape_steps = 20 # number of optimization steps
+n = 4 # number of different pulse amplitudes
+epsilon = 0.1 # amount each gradient step can influence amps
+grape_steps = 10 # number of optimization steps
 ###
 t_end = tau_c_f + 0.42 * hoa # end of RTN
 
@@ -475,9 +482,14 @@ fids_G = []
 
 np.random.seed()
 cpus = 8
-if not (profiling and parallel):
+if not profiling and parallel:
+    print("POOL")
     pool = Pool(processes=cpus)
 
+def ezmap(f, xs):
+    if parallel:
+        return pool.map(f, xs)
+    return map(f, xs)
 
 start = time.time()
 prev_time = -1
