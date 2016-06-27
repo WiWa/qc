@@ -31,7 +31,8 @@ th_time = [0.]
 # Mikko Mottonen and Rogerio de Sousa
 ###
 
-profiling = True
+profiling = False
+parallel = True
 
 sigmaX = np.array([    [0., 1.]  ,
                         [1., 0.]  ], np.complex128)
@@ -181,7 +182,7 @@ def generateRho(rho_0, N, Us):
             return np.dot(np.dot(U, rho_0), U.conj().T)
         # U_k_ts = [np.array(U_k(t)) for U_k in Us]
         # terms = [U * rho_0 * U.conj().T for U in U_k_ts]
-        if profiling:
+        if profiling and parallel:
             terms = map(R, Us)
         else:
             terms = pool.map(R, Us)
@@ -204,7 +205,8 @@ def w(a):
 U_count = [0.]
 def generateU_k(a, eta_k, stepsize=0.03, t0=0.):
     def U_k(t):
-        # if t0 <= t:
+        # if t0 <= t and t <= :
+
         start = time.time()
 
         steps = int(np.ceil(t / stepsize))
@@ -331,53 +333,67 @@ def fid14(Uf, N, Uks):
     res = np.array(1/2.) + c * sum(terms)
     return res
 
+identity = np.array([[1,0],[0,1]])
+
 # Eq. 21
 # T is end of the pulse, n is the number of "sections" (same width)
 # 1 <= m <= n
-def grad_phi_am(delta_t, m, Us_mk, rho_0, rho_f):
+def grad_phi_am(T, N, m, Us_mk, rho_0, rho_f):
+    delta_t = T / n
     c = np.array((-1.j/2) * delta_t / N)
 
-    Us_nm_k = reversed(Us_mk[m:(n-1)])
-    Us_m1_k = reversed(Us_mk[1:(m-1)])
-    U_nm_k = reduce(np.dot, Us_nm_k)
-    U_nm_kH = U_nm_k.conj().T
-    U_m1_k = reduce(np.dot, Us_m1_k)
-    U_m1_kH = U_m1_k.conj().T
+    # terms = []
+    res = 0
+    for k in range(N):
+        U_k = Us_mk[k]
+        Us_nm_k = U_k[m:(n-1)]
+        # Us_nm_k.reverse()
+        Us_m1_k = U_k[0:(m-1)]
+        # Us_m1_k.reverse()
 
-    lambda_mk = reduce(np.dot, [U_nm_kH, rho_f, U_nm_k])
-    lambda_H = lambda_mk.conj().H
-    rho_mk = reduce(np.dot, [U_m1_k, rho_0, U_m1_kH])
-    def term_func():
-        return np.trace(np.dot(lambda_H, comm(sigmaX, rho_mk)))
-    res = sum(map(term_func, Uks))
+        U_nm_k = reduce(np.dot, reversed(Us_nm_k),identity)
+        U_nm_kH = U_nm_k.conj().T
+        U_m1_k = reduce(np.dot, reversed(Us_m1_k),identity)
+        U_m1_kH = U_m1_k.conj().T
+
+        lambda_mk = reduce(np.dot, [U_nm_kH, rho_f, U_nm_k])
+        lambda_H = lambda_mk.conj().T
+        rho_mk = reduce(np.dot, [U_m1_k, rho_0, U_m1_kH])
+        term = np.trace(np.dot(lambda_H, comm(sigmaX, rho_mk)))
+        res += term
+    # res = sum(terms)
+    res = c * res
+    return res
 
 def GRAPE(T, n, N, rho_0, rho_f, tau_c, eta_0, stepsize, amps, epsilon=0.01):
-    delta_t = T / n
+    print("grape step!")
     pulses = buildGrapePulses(amps, T)
-    Us_mk = []
+    ts = np.linspace(0., T, n+1)
+    Us_k = [] # Every U_k is actually a list of U_m
     new_amps = []
-    for m in range(n):
-        Us_m = [ezGenerateU_k(pulses[m], te, tau_c, eta_0, stepsize=stepsize) for i in range(N)]
-        Us_mk.append(Us_m)
+    for k in range(N):
+        Us_m = []
+        for m in range(n):
+            t0 = ts[m]
+            te = ts[m+1]
+            t_avg = (t0 + te) / 2.
+            U_m = ezGenerateU_k(pulses[m], te, tau_c, eta_0, stepsize)(t_avg)
+            Us_m.append(U_m)
+        Us_k.append(Us_m)
     for m in range(n):
         a_m = amps[m]
-        d_phi_d_am = grad_phi_am(delta_t, m, Us_mk, rho_0, rho_f)
+        d_phi_d_am = grad_phi_am(T, N, m, Us_k, rho_0, rho_f)
         # Eq. 13
         new_amp = a_m + epsilon*a_max*d_phi_d_am
+        new_amp = max(new_amp, -a_max)
+        new_amp = min(new_amp, a_max)
         new_amps.append(new_amp)
     return new_amps
 
 
-def miniAscend(pulse):
-
-
-def ascendGrad(amps, T):
-    return map(miniAscend, amps)
-
-
 def pulseMaker(t0, te, amp):
     def pulse(t):
-        if t0 <= t and t <= te:
+        if t0 < t and t <= te:
             return amp
         return 0.
     return pulse
@@ -387,13 +403,17 @@ def buildGrapePulses(amps, T):
     ts = np.linspace(0., T, n + 1)
     pulses = []
     for m in range(1, len(ts)):
-        t0 = t[i-1]
-        te = t[i]
-        amp = amps[i-1]
+        t0 = ts[m-1]
+        te = ts[m]
+        amp = amps[m-1]
         pulse = pulseMaker(t0, te, amp)
         pulses.append(pulse)
     return pulses
 
+def aggPulse(pulses):
+    def pulse(t):
+        return sum([pulse_section(t) for pulse_section in pulses])
+    return pulse
 
 ####
 
@@ -403,13 +423,18 @@ rho_f = dm_0
 eta_0 = Delta
 
 tau_c_0 = 0.2 * hoa
-tau_c_f = 31. * hoa
+tau_c_f = 16. * hoa
 ###
 # Performance Params
 ###
-dtau_c = 0.42 * hoa
-N = 1200 # number of RTN trajectories
-stepsize = 0.03 # Step-forward matrices step size
+dtau_c = 0.82 * hoa
+N = 100 # number of RTN trajectories
+stepsize = 0.10 # Step-forward matrices step size
+
+T_G = 4 * hoa # sousa figure 2
+n = 5 # number of different pulse amplitudes
+epsilon = 0.04 # amount each gradient step can influence amps
+grape_steps = 20 # number of optimization steps
 ###
 t_end = tau_c_f + 0.42 * hoa # end of RTN
 
@@ -446,10 +471,11 @@ Starting...
 fids_pi = []
 fids_C = []
 fids_SC = []
+fids_G = []
 
 np.random.seed()
 cpus = 8
-if not profiling:
+if not (profiling and parallel):
     pool = Pool(processes=cpus)
 
 
@@ -494,6 +520,16 @@ for i in range(len(tau_cs)):
     rho_SC, us = ezGenerate_Rho(a_SC, t_end, tau_c, eta_0, rho_0, N, stepsize)
     fid_SC = fidSingleTxDirect(rho_f, rho_SC, T_SC)
     fids_SC.append(fid_SC)
+
+    ### Grape
+    init_amps = [0 for i in range(n)]
+    grape_amps = init_amps
+    for i in range(grape_steps):
+        grape_amps = GRAPE(T_G, n, N, rho_0, rho_f, tau_c, eta_0, stepsize, grape_amps, epsilon)
+    grape_pulse = aggPulse(buildGrapePulses(grape_amps, T_G))
+    rho_G, Us = ezGenerate_Rho(grape_pulse, t_end, tau_c, eta_0, rho_0, N, stepsize)
+    fid_G = fidSingleTxDirect(rho_f, rho_G, T_G)
+    fids_G.append(fid_G)
 
     miniend = time.time()
     prev_time = miniend - ministart
