@@ -202,13 +202,14 @@ def w(a):
     return 3
 
 U_count = [0.]
-def generateU_k(a, eta_k, stepsize=0.03):
+def generateU_k(a, eta_k, stepsize=0.03, t0=0.):
     def U_k(t):
+        # if t0 <= t:
         start = time.time()
 
         steps = int(np.ceil(t / stepsize))
         # steps = 700
-        ts = np.linspace(0., t, steps)
+        ts = np.linspace(t0, t, steps)
         dt = ts[1] - ts[0]
         cvec = np.array(dt * -(1j), np.complex128)
         def G(t_):
@@ -333,8 +334,7 @@ def fid14(Uf, N, Uks):
 # Eq. 21
 # T is end of the pulse, n is the number of "sections" (same width)
 # 1 <= m <= n
-def grad_phi_am(T, n, m, Us_mk, rho_0, rho_f):
-    delta_t = T / n
+def grad_phi_am(delta_t, m, Us_mk, rho_0, rho_f):
     c = np.array((-1.j/2) * delta_t / N)
 
     Us_nm_k = reversed(Us_mk[m:(n-1)])
@@ -350,6 +350,50 @@ def grad_phi_am(T, n, m, Us_mk, rho_0, rho_f):
     def term_func():
         return np.trace(np.dot(lambda_H, comm(sigmaX, rho_mk)))
     res = sum(map(term_func, Uks))
+
+def GRAPE(T, n, N, rho_0, rho_f, tau_c, eta_0, stepsize, amps, epsilon=0.01):
+    delta_t = T / n
+    pulses = buildGrapePulses(amps, T)
+    Us_mk = []
+    new_amps = []
+    for m in range(n):
+        Us_m = [ezGenerateU_k(pulses[m], te, tau_c, eta_0, stepsize=stepsize) for i in range(N)]
+        Us_mk.append(Us_m)
+    for m in range(n):
+        a_m = amps[m]
+        d_phi_d_am = grad_phi_am(delta_t, m, Us_mk, rho_0, rho_f)
+        # Eq. 13
+        new_amp = a_m + epsilon*a_max*d_phi_d_am
+        new_amps.append(new_amp)
+    return new_amps
+
+
+def miniAscend(pulse):
+
+
+def ascendGrad(amps, T):
+    return map(miniAscend, amps)
+
+
+def pulseMaker(t0, te, amp):
+    def pulse(t):
+        if t0 <= t and t <= te:
+            return amp
+        return 0.
+    return pulse
+
+def buildGrapePulses(amps, T):
+    n = len(amps)
+    ts = np.linspace(0., T, n + 1)
+    pulses = []
+    for m in range(1, len(ts)):
+        t0 = t[i-1]
+        te = t[i]
+        amp = amps[i-1]
+        pulse = pulseMaker(t0, te, amp)
+        pulses.append(pulse)
+    return pulses
+
 
 ####
 
