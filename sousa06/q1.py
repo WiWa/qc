@@ -314,6 +314,42 @@ def fidSingleTxFull(rho_0, rho_f, T, N, Us):
     terms = [np.trace(mat) for mat in mats]
     return (1./N) * sum(terms)
 
+# Eq. 14
+def fid14(Uf, N, Uks):
+    c = np.array(1./(12*N))
+    sigs = [sigmaX, sigmaY, sigmaZ]
+    UfH = Uf.conj().T
+    def term_func(Uk):
+        UkH = Uk.conj().T
+        res = 0.
+        for sig in sigs:
+            red = reduce(np.dot, [Uf, sig, UfH, Uk, sig, UkH])
+            res += np.trace(red)
+        return res
+    terms = map(term_func, Uks)
+    res = np.array(1/2.) + c * sum(terms)
+    return res
+
+# Eq. 21
+# T is end of the pulse, n is the number of "sections" (same width)
+# 1 <= m <= n
+def grad_phi_am(T, n, m, Us_mk, rho_0, rho_f):
+    delta_t = T / n
+    c = np.array((-1.j/2) * delta_t / N)
+
+    Us_nm_k = reversed(Us_mk[m:(n-1)])
+    Us_m1_k = reversed(Us_mk[1:(m-1)])
+    U_nm_k = reduce(np.dot, Us_nm_k)
+    U_nm_kH = U_nm_k.conj().T
+    U_m1_k = reduce(np.dot, Us_m1_k)
+    U_m1_kH = U_m1_k.conj().T
+
+    lambda_mk = reduce(np.dot, [U_nm_kH, rho_f, U_nm_k])
+    lambda_H = lambda_mk.conj().H
+    rho_mk = reduce(np.dot, [U_m1_k, rho_0, U_m1_kH])
+    def term_func():
+        return np.trace(np.dot(lambda_H, comm(sigmaX, rho_mk)))
+    res = sum(map(term_func, Uks))
 
 ####
 
@@ -328,8 +364,8 @@ tau_c_f = 31. * hoa
 # Performance Params
 ###
 dtau_c = 0.42 * hoa
-N = 19200 # number of RTN trajectories
-stepsize = 0.025 # Step-forward matrices step size
+N = 1200 # number of RTN trajectories
+stepsize = 0.03 # Step-forward matrices step size
 ###
 t_end = tau_c_f + 0.42 * hoa # end of RTN
 
