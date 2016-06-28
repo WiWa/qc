@@ -232,7 +232,7 @@ def generateU_k(a, eta_k, stepsize=0.03, t0=0.):
         C = G(ts[0])
         for i in range(1, len(ts)):
             # G_avg = 0.5 * (G(ts[i-1]) + G(ts[i]))
-            C = BCH(C, G(ts[i]))
+            C = BCH(C, G(ts[i]), order=5)
 
 
         # C = sum(Ss)
@@ -411,11 +411,18 @@ def GRAPE(T, n, N, rho_0, rho_f, tau_c, eta_0, stepsize, amps, epsilon=0.01):
 
 
 def pulseMaker(t0, te, amp):
-    def pulse(t):
-        if t0 < t and t <= te:
-            return amp
-        return 0.
-    return pulse
+    if t0 is 0.:
+        def pulse(t):
+            if t0 <= t and t <= te:
+                return amp
+            return 0.
+        return pulse
+    else:
+        def pulse(t):
+            if t0 < t and t <= te:
+                return amp
+            return 0.
+        return pulse
 
 def buildGrapePulses(amps, T):
     n = len(amps)
@@ -436,6 +443,25 @@ def aggPulse(pulses):
 
 ####
 
+def update_plots(fig, ax, plots, xss, yss):
+    if len(plots) is not len(xss) \
+        or len(plots) is not len(yss) \
+        or len(xss) is not len(yss):
+        raise ValueError("plots, xss, and yss need to be the same length!")
+
+    for i in range(len(plots)):
+        plot = plots[i]
+        xs = xss[i]
+        ys = yss[i]
+        plot.set_xdata(xs)
+        plot.set_ydata(ys)
+    ax.relim()
+    ax.autoscale_view()
+    fig.canvas.draw()
+####
+
+np.random.seed()
+
 # Bit flip on computational basis
 rho_0 = dm_1
 rho_f = dm_0
@@ -446,18 +472,23 @@ tau_c_f = 30. * hoa
 ###
 # Performance Params
 ###
-dtau_c = 0.42 * hoa
-N = 520 # number of RTN trajectories
-stepsize = 0.032 # Step-forward matrices step size
+dtau_c = 0.32 * hoa
+N = 1600 # number of RTN trajectories
+stepsize = 0.012 # Step-forward matrices step size
 
 T_G = 4 * hoa # sousa figure 2
 n = 8 # number of different pulse amplitudes
-epsilon = 0.12 # amount each gradient step can influence amps
-grape_steps = 12 # number of optimization steps
+epsilon = .6 # amount each gradient step can influence amps
+grape_steps = 8 # number of optimization steps
 ###
 t_end = tau_c_f + 0.42 * hoa # end of RTN
 
 profiling = False
+
+cpus = 8
+pool = Pool(processes=cpus)
+if not profiling and parallel:
+    print("POOL")
 
 tau_c = tau_c_0
 tau_cs = [tau_c]
@@ -465,17 +496,21 @@ while tau_c < tau_c_f:
     tau_c += dtau_c
     tau_cs.append(tau_c)
 
-tau_cs = [0.3, 3.0, 29.] # sanity check
+# tau_cs = [0.3, 3.0, 29.] # sanity check
 
 ### Grape
-tau_grape = 3.
-init_amps = [0 for i in range(n)]
-grape_amps = init_amps
-for i in range(grape_steps):
-    grape_amps = GRAPE(T_G, n, N, rho_0, rho_f, tau_grape, eta_0, stepsize, grape_amps, epsilon)
-np.savetxt("data/grape_pulse.txt", grape_amps)
-grape_pulse = aggPulse(buildGrapePulses(grape_amps, T_G))
-
+# tau_grape = 3.
+# init_amps = [a_max/2. for i in range(n)]
+# grape_amps = init_amps
+# for i in range(grape_steps):
+#     start = time.time()
+#     grape_amps = GRAPE(T_G, n, N/8, rho_0, rho_f, tau_grape, eta_0, stepsize, grape_amps, epsilon)
+#     print("grapestep: " + str(time.time() - start))
+#     print(grape_amps)
+# np.savetxt("data/grape_pulse.txt", grape_amps)
+# grape_pulse = aggPulse(buildGrapePulses([1.,1.,1.,1.], T_pi))
+# print(integrate.quad(grape_pulse, 0, 3.5))
+# print(integrate.quad(a_pi, 0, 3.5))
 # tau_cs = [0.4, 1.8, 3., 5., 10.]
 eta_0_a_max = eta_0 / a_max
 print("""
@@ -503,12 +538,6 @@ fids_C = []
 fids_SC = []
 fids_G = []
 
-np.random.seed()
-cpus = 8
-pool = Pool(processes=cpus)
-if not profiling and parallel:
-    print("POOL")
-
 def ezmap(f, xs):
     if parallel:
         return pool.map(f, xs)
@@ -518,10 +547,10 @@ p_t = []
 
 fig, ax = plt.subplots()
 
-p_pi = plt.plot(p_t, fids_pi, 'b--', label="pi pulse")
-p_c = plt.plot(p_t, fids_C, 'r-', label="CORPSE pulse")
-p_sc = plt.plot(p_t, fids_SC, 'r--', label="SCORPSE pulse")
-p_g = plt.plot(p_t, fids_G, 'g-', label="GRAPE pulse")
+p_pi, = plt.plot(p_t, fids_pi, 'b--', label="pi pulse")
+p_c, = plt.plot(p_t, fids_C, 'r-', label="CORPSE pulse")
+p_sc, = plt.plot(p_t, fids_SC, 'r--', label="SCORPSE pulse")
+# p_g, = plt.plot(p_t, fids_G, 'g-', label="GRAPE pulse")
 
 plt.xlabel("tau_c / (hbar / a_max)")
 plt.ylabel("fidelity \\phi(rho_f, rho_0)")
@@ -557,6 +586,7 @@ for i in range(len(tau_cs)):
         th_time[0] = 0.
 
     tau_c = tau_cs[i]
+    p_t.append(tau_c)
     js = generateJumpTimes(t_end, tau_c)
 
     rho_pi, Us = ezGenerate_Rho(a_pi, t_end, tau_c, eta_0, rho_0, N, stepsize)
@@ -571,14 +601,14 @@ for i in range(len(tau_cs)):
     fid_SC = fidSingleTxDirect(rho_f, rho_SC, T_SC)
     fids_SC.append(fid_SC)
 
-    rho_G, Us = ezGenerate_Rho(grape_pulse, t_end, tau_c, eta_0, rho_0, N, stepsize)
-    fid_G = fidSingleTxDirect(rho_f, rho_G, T_G)
-    fids_G.append(fid_G)
+    # rho_G, Us = ezGenerate_Rho(grape_pulse, t_end, tau_c, eta_0, rho_0, N, stepsize)
+    # fid_G = fidSingleTxDirect(rho_f, rho_G, T_G)
+    # fids_G.append(fid_G)
 
     update_plots(fig, ax, \
-        [p_pi, p_c, p_sc, p_g], \
-        [p_t, p_t, p_t, p_t], \
-        [fids_pi, fids_C, fids_SC, fids_G] )
+        [p_pi, p_c, p_sc], \
+        [p_t, p_t, p_t], \
+        [fids_pi, fids_C, fids_SC] )
 
     miniend = time.time()
     prev_time = miniend - ministart
@@ -589,7 +619,7 @@ print("time taken: " + str(time.time() - start))
 np.savetxt("data/fids_pi.txt", fids_pi)
 np.savetxt("data/fids_C.txt", fids_C)
 np.savetxt("data/fids_SC.txt", fids_SC)
-np.savetxt("data/fids_G.txt", fids_G)
+# np.savetxt("data/fids_G.txt", fids_G)
 
 fig.savefig("data/fig.png")
 #
