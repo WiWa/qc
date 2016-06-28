@@ -373,7 +373,7 @@ def grad_phi_am(T, N, m, Us_mk, rho_0, rho_f):
     res = c * res
     return res
 
-def GRAPE(pool,T, n, N, rho_0, rho_f, tau_c, eta_0, stepsize, amps, epsilon=0.01):
+def GRAPE(T, n, N, rho_0, rho_f, tau_c, eta_0, stepsize, amps, epsilon=0.01):
     pulses = buildGrapePulses(amps, T)
     ts = np.linspace(0., T, n+1)
     Us_k = [] # Every U_k is actually a list of U_m
@@ -451,9 +451,9 @@ N = 520 # number of RTN trajectories
 stepsize = 0.032 # Step-forward matrices step size
 
 T_G = 4 * hoa # sousa figure 2
-n = 5 # number of different pulse amplitudes
-epsilon = 0.15 # amount each gradient step can influence amps
-grape_steps = 7 # number of optimization steps
+n = 8 # number of different pulse amplitudes
+epsilon = 0.12 # amount each gradient step can influence amps
+grape_steps = 12 # number of optimization steps
 ###
 t_end = tau_c_f + 0.42 * hoa # end of RTN
 
@@ -464,6 +464,17 @@ tau_cs = [tau_c]
 while tau_c < tau_c_f:
     tau_c += dtau_c
     tau_cs.append(tau_c)
+
+tau_cs = [0.3, 3.0, 29.] # sanity check
+
+### Grape
+tau_grape = 3.
+init_amps = [0 for i in range(n)]
+grape_amps = init_amps
+for i in range(grape_steps):
+    grape_amps = GRAPE(T_G, n, N, rho_0, rho_f, tau_grape, eta_0, stepsize, grape_amps, epsilon)
+np.savetxt("data/grape_pulse.txt", grape_amps)
+grape_pulse = aggPulse(buildGrapePulses(grape_amps, T_G))
 
 # tau_cs = [0.4, 1.8, 3., 5., 10.]
 eta_0_a_max = eta_0 / a_max
@@ -502,6 +513,21 @@ def ezmap(f, xs):
     if parallel:
         return pool.map(f, xs)
     return map(f, xs)
+
+p_t = []
+
+fig, ax = plt.subplots()
+
+p_pi = plt.plot(p_t, fids_pi, 'b--', label="pi pulse")
+p_c = plt.plot(p_t, fids_C, 'r-', label="CORPSE pulse")
+p_sc = plt.plot(p_t, fids_SC, 'r--', label="SCORPSE pulse")
+p_g = plt.plot(p_t, fids_G, 'g-', label="GRAPE pulse")
+
+plt.xlabel("tau_c / (hbar / a_max)")
+plt.ylabel("fidelity \\phi(rho_f, rho_0)")
+plt.legend(loc='best')
+plt.show(block=False)
+
 
 start = time.time()
 prev_time = -1
@@ -545,43 +571,47 @@ for i in range(len(tau_cs)):
     fid_SC = fidSingleTxDirect(rho_f, rho_SC, T_SC)
     fids_SC.append(fid_SC)
 
-    ### Grape
-    init_amps = [(a_max/3.) for i in range(n)]
-    grape_amps = init_amps
-    for i in range(grape_steps):
-        grape_amps = GRAPE(pool, T_G, n, N, rho_0, rho_f, tau_c, eta_0, stepsize, grape_amps, epsilon)
-    grape_pulse = aggPulse(buildGrapePulses(grape_amps, T_G))
     rho_G, Us = ezGenerate_Rho(grape_pulse, t_end, tau_c, eta_0, rho_0, N, stepsize)
     fid_G = fidSingleTxDirect(rho_f, rho_G, T_G)
     fids_G.append(fid_G)
+
+    update_plots(fig, ax, \
+        [p_pi, p_c, p_sc, p_g], \
+        [p_t, p_t, p_t, p_t], \
+        [fids_pi, fids_C, fids_SC, fids_G] )
 
     miniend = time.time()
     prev_time = miniend - ministart
 print("time taken: " + str(time.time() - start))
 
-fig = plt.figure()
+# fig = plt.figure()
 
 np.savetxt("data/fids_pi.txt", fids_pi)
 np.savetxt("data/fids_C.txt", fids_C)
 np.savetxt("data/fids_SC.txt", fids_SC)
 np.savetxt("data/fids_G.txt", fids_G)
 
-# xnew = np.linspace(tau_cs[0],tau_cs[-1],100)
-# fids_pi = spline(tau_cs, fids_pi, xnew)
-# fids_C = spline(tau_cs, fids_C, xnew)
-# fids_SC = spline(tau_cs, fids_SC, xnew)
-# xnew = tau_cs
-plt.plot(tau_cs, fids_pi, 'b--', label="pi pulse")
-plt.plot(tau_cs, fids_C, 'r-', label="CORPSE pulse")
-plt.plot(tau_cs, fids_SC, 'r--', label="SCORPSE pulse")
-plt.plot(tau_cs, fids_G, 'r--', label="GRAPE pulse")
-# plt.axis([0, 30, 0.975, 1])
-plt.xlabel("tau_c / (hbar / a_max)")
-plt.ylabel("fidelity \\phi(rho_f, rho_0)")
-plt.legend(loc='best')
+fig.savefig("data/fig.png")
+#
+# # xnew = np.linspace(tau_cs[0],tau_cs[-1],100)
+# # fids_pi = spline(tau_cs, fids_pi, xnew)
+# # fids_C = spline(tau_cs, fids_C, xnew)
+# # fids_SC = spline(tau_cs, fids_SC, xnew)
+# # xnew = tau_cs
+# plt.plot(tau_cs, fids_pi, 'b--', label="pi pulse")
+# plt.plot(tau_cs, fids_C, 'r-', label="CORPSE pulse")
+# plt.plot(tau_cs, fids_SC, 'r--', label="SCORPSE pulse")
+# plt.plot(tau_cs, fids_G, 'r--', label="GRAPE pulse")
+# # plt.axis([0, 30, 0.975, 1])
+# plt.xlabel("tau_c / (hbar / a_max)")
+# plt.ylabel("fidelity \\phi(rho_f, rho_0)")
+# plt.legend(loc='best')
+#
+# # smooth_ax = p.axes([0.8, 0.025, 0.1, 0.04])
+# # smooth_btn = Button(smooth_ax, 'Smooth', color=axcolor, hovercolor='0.975')
+# # smooth_btn.on_clicked(smooth)
+#
+# plt.show(block=False)
 
-# smooth_ax = p.axes([0.8, 0.025, 0.1, 0.04])
-# smooth_btn = Button(smooth_ax, 'Smooth', color=axcolor, hovercolor='0.975')
-# smooth_btn.on_clicked(smooth)
-
-plt.show()
+print("Done! Press Enter to exit.")
+raw_input()

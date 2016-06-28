@@ -4,3 +4,5 @@ slidertest.py
 papers
 figures
 *.pyo
+*.pyc
+
