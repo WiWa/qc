@@ -458,6 +458,7 @@ def update_plots(fig, ax, plots, xss, yss):
     ax.relim()
     ax.autoscale_view()
     fig.canvas.draw()
+    plt.pause(0.0001)
 ####
 
 np.random.seed()
@@ -545,6 +546,7 @@ def ezmap(f, xs):
 
 p_t = []
 
+plt.ion()
 fig, ax = plt.subplots()
 
 p_pi, = plt.plot(p_t, fids_pi, 'b--', label="pi pulse")
@@ -555,7 +557,8 @@ p_sc, = plt.plot(p_t, fids_SC, 'r--', label="SCORPSE pulse")
 plt.xlabel("tau_c / (hbar / a_max)")
 plt.ylabel("fidelity \\phi(rho_f, rho_0)")
 plt.legend(loc='best')
-plt.show(block=False)
+plt.show()
+plt.pause(0.0001)
 
 
 start = time.time()
@@ -587,7 +590,7 @@ for i in range(len(tau_cs)):
 
     tau_c = tau_cs[i]
     p_t.append(tau_c)
-    js = generateJumpTimes(t_end, tau_c)
+    # js = generateJumpTimes(t_end, tau_c)
 
     rho_pi, Us = ezGenerate_Rho(a_pi, t_end, tau_c, eta_0, rho_0, N, stepsize)
     fid_pi = fidSingleTxDirect(rho_f, rho_pi, T_pi)
