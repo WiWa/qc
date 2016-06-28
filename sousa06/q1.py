@@ -232,7 +232,7 @@ def generateU_k(a, eta_k, stepsize=0.03, t0=0.):
         C = G(ts[0])
         for i in range(1, len(ts)):
             # G_avg = 0.5 * (G(ts[i-1]) + G(ts[i]))
-            C = BCH(C, G(ts[i]), order=5)
+            C = BCH(C, G(ts[i]), order=4)
 
 
         # C = sum(Ss)
@@ -259,6 +259,9 @@ k3 = np.array(-1/12.,np.complex128)
 k4 = np.array(-1/24.,np.complex128)
 k5 = np.array(-1/720.,np.complex128)
 # Baker-Campbell-Hausdorff approx
+# Order 5 is pretty necessary for accuracy
+#   It takes about 85-90% more time.
+#   Which translates to ~20-25% more time in total.
 def BCH(A, B, order=4):
     start = time.time()
 
@@ -473,9 +476,9 @@ tau_c_f = 30. * hoa
 ###
 # Performance Params
 ###
-dtau_c = 0.21 * hoa
-N = 3600 # number of RTN trajectories
-stepsize = 0.008 # Step-forward matrices step size
+dtau_c = 0.32 * hoa
+N = 1200 # number of RTN trajectories
+stepsize = 0.012 # Step-forward matrices step size
 
 T_G = 4 * hoa # sousa figure 2
 n = 8 # number of different pulse amplitudes
@@ -486,7 +489,7 @@ t_end = tau_c_f + 0.42 * hoa # end of RTN
 
 profiling = False
 
-cpus = 8
+cpus = 4
 pool = Pool(processes=cpus)
 if not profiling and parallel:
     print("POOL")
