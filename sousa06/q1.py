@@ -286,6 +286,7 @@ def comm(A, B):
 # et = integrate.quad(e, 0, 10)
 # print(et)
 
+
 # Generate a rho
 def ezGenerate_Rho(a, t_end, tau_c, eta_0, rho_0, N, stepsize=0.03):
     Us = [ezGenerateU_k(a, t_end, tau_c, eta_0, stepsize=stepsize) for i in range(N)]
