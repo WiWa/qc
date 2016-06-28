@@ -224,7 +224,7 @@ def generateU_k(a, eta_k, stepsize=0.03, t0=0.):
                 res = np.dot(cvec, hp)
                 g_time[0] += time.time() - teatime
                 return res
-            return dt * -(1.j) * H_t2(a(t_), eta_k(t_))
+            return np.dot(cvec, H_t2(a(t_), eta_k(t_)))
 
         # C = np.array([[1,0],[0,1]])
         # Ss = [G(t) for t in ts]
@@ -259,15 +259,17 @@ k3 = np.array(-1/12.,np.complex128)
 k4 = np.array(-1/24.,np.complex128)
 k5 = np.array(-1/720.,np.complex128)
 # Baker-Campbell-Hausdorff approx
-def BCH(A, B, o5=False):
+def BCH(A, B, order=4):
     start = time.time()
 
     c1 = np.dot(k1,comm(A, B))
     c2 = np.dot(k2,comm(A, c1))
     c3 = np.dot(k3,comm(B, c1))
-    c4 = np.dot(k4,comm(B, c2))
-    res = A + B + c1 + c2 + c3 + c4
-    if o5:
+    res = A + B + c1 + c2 + c3
+    if order > 3:
+        c4 = np.dot(k4,comm(B, c2))
+        res += c4
+    if order > 4:
         c5 = np.dot(k5,(bch5(A, B) + bch5(B, A)))
         res += c5
     if profiling:
@@ -371,7 +373,7 @@ def grad_phi_am(T, N, m, Us_mk, rho_0, rho_f):
     res = c * res
     return res
 
-def GRAPE(T, n, N, rho_0, rho_f, tau_c, eta_0, stepsize, amps, epsilon=0.01):
+def GRAPE(pool,T, n, N, rho_0, rho_f, tau_c, eta_0, stepsize, amps, epsilon=0.01):
     pulses = buildGrapePulses(amps, T)
     ts = np.linspace(0., T, n+1)
     Us_k = [] # Every U_k is actually a list of U_m
@@ -388,14 +390,23 @@ def GRAPE(T, n, N, rho_0, rho_f, tau_c, eta_0, stepsize, amps, epsilon=0.01):
         else:
             Us_m = map(genUs_m, range(n))
         Us_k.append(Us_m)
-    for m in range(n):
+    def makeNewAmps(m):
         a_m = amps[m]
         d_phi_d_am = grad_phi_am(T, N, m, Us_k, rho_0, rho_f)
         # Eq. 13
         new_amp = a_m + epsilon*a_max*d_phi_d_am
         new_amp = max(new_amp, -a_max)
         new_amp = min(new_amp, a_max)
-        new_amps.append(new_amp)
+        return new_amp
+    new_amps = map(makeNewAmps, range(n))
+    # for m in range(n):
+    #     a_m = amps[m]
+    #     d_phi_d_am = grad_phi_am(T, N, m, Us_k, rho_0, rho_f)
+    #     # Eq. 13
+    #     new_amp = a_m + epsilon*a_max*d_phi_d_am
+    #     new_amp = max(new_amp, -a_max)
+    #     new_amp = min(new_amp, a_max)
+    #     new_amps.append(new_amp)
     return new_amps
 
 
@@ -431,18 +442,18 @@ rho_f = dm_0
 eta_0 = Delta
 
 tau_c_0 = 0.2 * hoa
-tau_c_f = 16. * hoa
+tau_c_f = 30. * hoa
 ###
 # Performance Params
 ###
 dtau_c = 0.42 * hoa
-N = 400 # number of RTN trajectories
-stepsize = 0.03 # Step-forward matrices step size
+N = 520 # number of RTN trajectories
+stepsize = 0.032 # Step-forward matrices step size
 
 T_G = 4 * hoa # sousa figure 2
-n = 4 # number of different pulse amplitudes
-epsilon = 0.1 # amount each gradient step can influence amps
-grape_steps = 10 # number of optimization steps
+n = 5 # number of different pulse amplitudes
+epsilon = 0.15 # amount each gradient step can influence amps
+grape_steps = 7 # number of optimization steps
 ###
 t_end = tau_c_f + 0.42 * hoa # end of RTN
 
@@ -483,9 +494,9 @@ fids_G = []
 
 np.random.seed()
 cpus = 8
+pool = Pool(processes=cpus)
 if not profiling and parallel:
     print("POOL")
-    pool = Pool(processes=cpus)
 
 def ezmap(f, xs):
     if parallel:
@@ -535,10 +546,10 @@ for i in range(len(tau_cs)):
     fids_SC.append(fid_SC)
 
     ### Grape
-    init_amps = [0 for i in range(n)]
+    init_amps = [(a_max/3.) for i in range(n)]
     grape_amps = init_amps
     for i in range(grape_steps):
-        grape_amps = GRAPE(T_G, n, N, rho_0, rho_f, tau_c, eta_0, stepsize, grape_amps, epsilon)
+        grape_amps = GRAPE(pool, T_G, n, N, rho_0, rho_f, tau_c, eta_0, stepsize, grape_amps, epsilon)
     grape_pulse = aggPulse(buildGrapePulses(grape_amps, T_G))
     rho_G, Us = ezGenerate_Rho(grape_pulse, t_end, tau_c, eta_0, rho_0, N, stepsize)
     fid_G = fidSingleTxDirect(rho_f, rho_G, T_G)
@@ -553,15 +564,17 @@ fig = plt.figure()
 np.savetxt("data/fids_pi.txt", fids_pi)
 np.savetxt("data/fids_C.txt", fids_C)
 np.savetxt("data/fids_SC.txt", fids_SC)
+np.savetxt("data/fids_G.txt", fids_G)
 
-xnew = np.linspace(tau_cs[0],tau_cs[-1],100)
-fids_pi = spline(tau_cs, fids_pi, xnew)
-fids_C = spline(tau_cs, fids_C, xnew)
-fids_SC = spline(tau_cs, fids_SC, xnew)
-
-plt.plot(xnew, fids_pi, 'b--', label="pi pulse")
-plt.plot(xnew, fids_C, 'r-', label="CORPSE pulse")
-plt.plot(xnew, fids_SC, 'r--', label="SCORPSE pulse")
+# xnew = np.linspace(tau_cs[0],tau_cs[-1],100)
+# fids_pi = spline(tau_cs, fids_pi, xnew)
+# fids_C = spline(tau_cs, fids_C, xnew)
+# fids_SC = spline(tau_cs, fids_SC, xnew)
+# xnew = tau_cs
+plt.plot(tau_cs, fids_pi, 'b--', label="pi pulse")
+plt.plot(tau_cs, fids_C, 'r-', label="CORPSE pulse")
+plt.plot(tau_cs, fids_SC, 'r--', label="SCORPSE pulse")
+plt.plot(tau_cs, fids_G, 'r--', label="GRAPE pulse")
 # plt.axis([0, 30, 0.975, 1])
 plt.xlabel("tau_c / (hbar / a_max)")
 plt.ylabel("fidelity \\phi(rho_f, rho_0)")
