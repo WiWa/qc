@@ -473,9 +473,9 @@ tau_c_f = 30. * hoa
 ###
 # Performance Params
 ###
-dtau_c = 0.32 * hoa
-N = 1600 # number of RTN trajectories
-stepsize = 0.012 # Step-forward matrices step size
+dtau_c = 0.21 * hoa
+N = 3600 # number of RTN trajectories
+stepsize = 0.008 # Step-forward matrices step size
 
 T_G = 4 * hoa # sousa figure 2
 n = 8 # number of different pulse amplitudes
