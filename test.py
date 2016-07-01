@@ -17,6 +17,19 @@ def trotter2(Ms, n):
     prod = reduce(np.dot, eMs)
     return np.linalg.matrix_power(prod, n)
 
+identity = np.array([[1,0],[0,1]], dtype=np.complex128)
+def csexp(dt):
+    def exp(M):
+        cost = np.array(np.cos(dt), dtype=np.complex128)
+        sint = np.array(np.sin(dt), dtype=np.complex128)
+        c = np.array(-1.j, dtype=np.complex128)
+        return np.dot(cost, identity) + np.dot(np.dot(c, sint), M)
+    return exp
+
+def trotter3(Ms, dt):
+    eMs = map(csexp(dt), Ms)
+    return reduce(np.dot, eMs)
+
 def BCHtest(Ms, order=5):
     C = Ms[0]
     for i in range(1, len(Ms)):
@@ -71,28 +84,32 @@ def genM():
     return np.array([[a,b],[b,-a]])
 
 np.random.random()
-N = 10000
+N = 1000
 Ms = [genM() for i in range(N)]
 n = 100000
 
-# s = time()
-# r = trotter(Ms, n)
-# print(time() - s)
-#
-# s = time()
-# r = trotter2(Ms, n)
-# print(time() - s)
-#
-# s = time()
-# r = trotter(Ms, n)
-# print(time() - s)
+s = time()
+r1 = trotter(Ms, n)
+print(time() - s)
 
-cor = 10000.
-Ms = map(lambda m: np.dot(1./cor, m), Ms)
 s = time()
-r = BCHtest(Ms, order=4)
+r2 = trotter2(Ms, n)
 print(time() - s)
+
 s = time()
-r2 = BCHtest(Ms, order=5)
+r3 = trotter3(Ms, .1)
 print(time() - s)
-print(np.true_divide(r - r2, r))
+
+print(np.true_divide(r2 - r1, r1))
+print(np.true_divide(r3 - r2, r1))
+print(np.true_divide(r3 - r1, r1))
+
+# cor = 10000.
+# Ms = map(lambda m: np.dot(1./cor, m), Ms)
+# s = time()
+# r = BCHtest(Ms, order=4)
+# print(time() - s)
+# s = time()
+# r2 = BCHtest(Ms, order=5)
+# print(time() - s)
+# print(np.true_divide(r - r2, r))
