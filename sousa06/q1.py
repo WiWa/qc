@@ -32,7 +32,7 @@ th_time = [0.]
 ###
 
 profiling = False
-parallel = (not profiling) and False
+parallel = (not profiling) and True
 
 
 sigmaX = np.array([    [0., 1.]  ,
@@ -364,7 +364,6 @@ def makeRho_mk(U_k, m, rho_0):
 def grad_phi_am(T, N, m, Us_mk, rho_0, rho_f):
     delta_t = T / n
     c = np.array((-1.j/2) * delta_t / N)
-    print(c)
 
     terms = []
     res = 0
@@ -435,11 +434,15 @@ def GRAPE(T, n, N, rho_0, rho_f, tau_c, eta_0, stepsize, amps, epsilon=0.01):
         grads.append(d_phi_d_am)
         # Eq. 13
         new_amp = a_m + epsilon*a_max*d_phi_d_am
-        new_amp = max(new_amp, -a_max)
-        new_amp = min(new_amp, a_max)
+        if new_amp <= -a_max:
+            new_amp = .95 * -a_max
+        if new_amp >= a_max:
+            new_amp = .95 * a_max
+        # new_amp = max(new_amp, -a_max)
+        # new_amp = min(new_amp, a_max)
         return new_amp
     new_amps = map(makeNewAmps, range(n))
-    print(grads)
+    # print(grads)
     # for m in range(n):
     #     a_m = amps[m]
     #     d_phi_d_am = grad_phi_am(T, N, m, Us_k, rho_0, rho_f)
@@ -527,13 +530,9 @@ tau_c_f = 30. * hoa
 # Performance Params
 ###
 dtau_c = 0.32 * hoa
-N = 900 # number of RTN trajectories
-stepsize = 0.03 # Step-forward matrices step size
+N = 1600 # number of RTN trajectories
+stepsize = 0.025 # Step-forward matrices step size
 
-T_G = 4 * hoa # sousa figure 2
-n = 6 # number of different pulse amplitudes
-epsilon = .6 # amount each gradient step can influence amps
-grape_steps = 8 # number of optimization steps
 ###
 t_end = tau_c_f + 0.42 * hoa # end of RTN
 
@@ -550,7 +549,7 @@ while tau_c < tau_c_f:
     tau_c += dtau_c
     tau_cs.append(tau_c)
 
-tau_cs = [0.3, 3.0, 29.] # sanity check
+# tau_cs = [0.3, 3.0, 29.] # sanity check
 
 checkGrape = False
 # checkGrape = True
@@ -570,15 +569,19 @@ if checkGrape:
     plt.show()
     raw_input()
 
+T_G = 5. * hoa # sousa figure 2
+n = 8 # number of different pulse amplitudes
+epsilon = 0.009 # amount each gradient step can influence amps
+grape_steps = 3000 # number of optimization steps
 ### Grape
 doGrape = True
 if doGrape:
-    tau_grape = 3.
+    tau_grape = 5.
     init_amps = [a_max for i in range(n)]
     grape_amps = init_amps
     for i in range(grape_steps):
         start = time.time()
-        grape_amps = GRAPE(T_G, n, 50, rho_0, rho_f, tau_grape, eta_0, stepsize, grape_amps, epsilon)
+        grape_amps = GRAPE(T_G, n, 42, rho_0, rho_f, tau_grape, eta_0, stepsize, grape_amps, epsilon)
         print("grapestep: " + str(time.time() - start))
         print(grape_amps)
     np.savetxt("data/grape_pulse.txt", grape_amps)
@@ -587,7 +590,7 @@ else:
     T_G = T_pi
     grape_pulse = aggAmps([a_max,a_max,a_max,a_max], T_G)
 
-doContinue = False
+doContinue = True
 if not doContinue:
     sys.exit()
 # grape_pulse = aggPulse(buildGrapePulses([1.,1.,1.,1.], T_pi))
@@ -688,7 +691,6 @@ for i in range(len(tau_cs)):
 
     rho_G, Us = ezGenerate_Rho(grape_pulse, t_end, tau_c, eta_0, rho_0, N, stepsize)
     fid_G = fidSingleTxDirect(rho_f, rho_G, T_G)
-    # fid_G = 0.5
     fids_G.append(fid_G)
 
     update_plots(fig, ax, \
