@@ -106,19 +106,23 @@ def a_SC(t):
     return 0
 
 ###### Sym/Antisym pulses
+# 2.0 for "normal"
+# ~4.6 for "capped"
+# ~7.8 for normed
 tau = (5.1 * pi / 3) * hoa # Electron relaxation time; idk the "real" value :)
 # See paper by S. Pasini for constants
-a1_sym = -2.159224 * (1/tau)
-a2_sym = -5.015588 * (1/tau)
-a1_asym = 5.263022 * (1/tau)
-b1_asym = 17.850535 * (1/tau)
-a2_asym = -16.809353 * (1/tau)
-b2_asym = 15.634390 * (1/tau)
+a1_sym = -2.159224
+a2_sym = -5.015588
+a1_asym = 5.263022
+b1_asym = 17.850535
+a2_asym = -16.809353
+b2_asym = 15.634390 # * (1/tau)
 # Makes X(t) driving pulse function
 # theta is either pi or pi/2
 # a, b are constants
 # This pulse lasts a single period: 0 -> tau
 def X_factory(theta, a, b, antisym, tau=tau):
+    norm = -2.0 * a + theta
     def X_sym(t):
         if t < 0:
             return 0
@@ -127,7 +131,8 @@ def X_factory(theta, a, b, antisym, tau=tau):
         _1 = theta / 2
         _2 = (a - _1) * cos((2 * pi  / tau) * t)
         _3 = a * cos((4 * pi  / tau) * t)
-        return (_1 + _2 - _3) * a_max
+        return minabs((_1 + _2 - _3) * a_max, a_max) # capped
+        # return (_1 + _2 - _3) * a_max / norm # normed
 
     def X_antisym(t):
         if t < 0:
@@ -137,11 +142,24 @@ def X_factory(theta, a, b, antisym, tau=tau):
         _1 = X_sym(t)
         _2 = b * sin((2 * pi  / tau) * t)
         _3 = (b/2) * sin((4 * pi  / tau) * t)
-        return (_1 + _2 - _3) * a_max
+        return minabs((_1 + _2 - _3) * a_max, a_max)
+        # return (_1 + _2 - _3) * a_max / norm
 
+    # def s(t):
+    #     if t <= 0 or t > pi:
+    #         return 0
+    #     return a_max
+    # return s
     if antisym:
         return X_antisym
     return X_sym
+
+def minabs(x, y):
+    if abs(x) < abs(y):
+        return x
+    if x < 0:
+        return -y
+    return y
 
 # sym_pi = X_factory(pi, a1_asym, b1_asym, True)
 
@@ -280,7 +298,7 @@ def generateU_k(a, eta_k, stepsize=0.03, t0=0., te=None):
         C = G(ts[0])
         for i in range(1, len(ts)):
             # G_avg = 0.5 * (G(ts[i-1]) + G(ts[i]))
-            C = BCH(C, G(ts[i]), order=6)
+            C = BCH(C, G(ts[i]), order=5)
 
         # C = sum(Ss)
         # U_count[0] += 1
@@ -430,7 +448,7 @@ times = [0.2* hoa, 3.0* hoa, 15.0* hoa]
 # Performance Params
 ###
 N = 420 # number of RTN trajectories
-stepsize = 0.022 # Step-forward matrices step size, dont lower
+stepsize = 0.024 # Step-forward matrices step size, dont lower
 
 ###
 t_end = 15.42 # end of RTN
@@ -446,9 +464,9 @@ if not profiling and parallel:
 #     tau_c += dtau_c
 #     tau_cs.append(tau_c)
 # tau_cs =
-tau_start = ( 1.0 * pi / 3 )* hoa
-tau_end = ( 20. * pi / 3 )* hoa
-dtau = 0.15 * hoa
+tau_start = ( 4.1 * pi / 3 )* hoa
+tau_end = ( 7. * pi / 3 )* hoa
+dtau = 0.1 * hoa
 t_ = tau_start
 taus = []
 while t_ < tau_end:
@@ -475,7 +493,7 @@ plt.ion()
 fig, ax = plt.subplots()
 
 p1, = plt.plot(p_t, sym1, 'b--', label="t=1")
-p3, = plt.plot(p_t, sym3, 'r--', label="t=3")
+p3, = plt.plot(p_t, sym3, 'r-', label="t=3")
 p15, = plt.plot(p_t, sym15, 'g--', label="t=15")
 
 plt.xlabel("tau in (hbar / a_max)")
@@ -491,19 +509,29 @@ for i in range(len(taus)):
     tau = taus[i]
 
     p_t.append(tau)
-    sym_pi = X_factory(pi, a1_sym, 0, False, tau=tau)
+    sym_pi = X_factory(pi, a2_sym / tau, 0, False, tau=tau)
+    sym_pi = X_factory(pi, a1_asym / tau, b1_asym/tau, True, tau=tau)
+    # sym_pi = X_factory(pi, a2_asym / tau, b2_asym/tau, True, tau=tau)
+    sym_pi = X_factory(pi, a1_sym / tau, 0, False, tau=tau)
 
     rho_sym, us = ezGenerate_Rho(sym_pi, t_end, times[0], eta_0, rho_0, N, stepsize)
     fid_sym = fidSingleTxDirect(rho_f, rho_sym, tau)
     sym1.append(fid_sym)
 
+    if fid_sym > 0.990:
+        print("1@ " + str(tau) + ", " + str(fid_sym))
+
     rho_sym, us = ezGenerate_Rho(sym_pi, t_end, times[1], eta_0, rho_0, N, stepsize)
     fid_sym = fidSingleTxDirect(rho_f, rho_sym, tau)
     sym3.append(fid_sym)
+    if fid_sym > 0.990:
+        print("3@ " + str(tau) + ", " + str(fid_sym))
 
     rho_sym, us = ezGenerate_Rho(sym_pi, t_end, times[2], eta_0, rho_0, N, stepsize)
     fid_sym = fidSingleTxDirect(rho_f, rho_sym, tau)
     sym15.append(fid_sym)
+    if fid_sym > 0.990:
+        print("15@ " + str(tau) + ", " + str(fid_sym))
 
     update_plots(fig, ax, \
         [p1, p3, p15], \

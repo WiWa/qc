@@ -33,7 +33,7 @@ th_time = [0.]
 ###
 
 profiling = False
-parallel = (not profiling) and False
+parallel = (not profiling) and True
 
 
 sigmaX = np.array([    [0., 1.]  ,
@@ -106,7 +106,10 @@ def a_SC(t):
     return 0
 
 ###### Sym/Antisym pulses
-tau = 2 * hoa # Electron relaxation time; idk the "real" value :)
+# 2.0 for "normal"
+# ~4.9 for "capped", 3tauc < .99; 15tauc ~ .98; (useless)
+# ~7.9 for normed, even worse than capped
+tau = 4.9 * hoa # Electron relaxation time; idk the "real" value :)
 # See paper by S. Pasini for constants
 a1_sym = -2.159224 * (1/tau)
 a2_sym = -5.015588 * (1/tau)
@@ -127,7 +130,7 @@ def X_factory(theta, a, b, antisym):
         _1 = theta / 2
         _2 = (a - _1) * cos((2 * pi  / tau) * t)
         _3 = a * cos((4 * pi  / tau) * t)
-        return (_1 + _2 - _3) * a_max
+        return minabs((_1 + _2 - _3) * a_max, a_max)
 
     def X_antisym(t):
         if t < 0:
@@ -137,11 +140,18 @@ def X_factory(theta, a, b, antisym):
         _1 = X_sym(t)
         _2 = b * sin((2 * pi  / tau) * t)
         _3 = (b/2) * sin((4 * pi  / tau) * t)
-        return (_1 + _2 - _3) * a_max
+        return minabs((_1 + _2 - _3) * a_max, a_max)
 
     if antisym:
         return X_antisym
     return X_sym
+
+def minabs(x, y):
+    if abs(x) < abs(y):
+        return x
+    if x < 0:
+        return -y
+    return y
 
 sym_pi = X_factory(pi, a1_sym, 0, False)
 # sym_pi = X_factory(pi, a1_asym, b1_asym, True)
@@ -584,7 +594,7 @@ tau_c_f = 32. * hoa
 ###
 # Performance Params
 ###
-dtau_c = 2.32 * hoa
+dtau_c = .32 * hoa
 N = 4000 # number of RTN trajectories
 stepsize = 0.022 # Step-forward matrices step size, dont lower
 
