@@ -104,6 +104,16 @@ def a_SC(t):
     if t < (T_SC):
         return -a_max
     return 0
+def a_SC2(t):
+    if t <= 0:
+        return 0
+    if t < ((pi / 3) * hoa):
+        return -a_max
+    if t <= (5.18 * hoa):
+        return a_max
+    if t < (T_SC):
+        return -a_max
+    return 0
 
 ###### Sym/Antisym pulses
 # 2.0 for "normal"
@@ -152,6 +162,16 @@ def minabs(x, y):
     if x < 0:
         return -y
     return y
+
+def x2p(width, periods):
+    def pulse(t):
+        if t < 0:
+            return 0
+        if t > width * periods:
+            return 0
+        # return (((t % width) - (width/2.0)) ** 2)/a_max
+        return (((t % width) - (width/2.0)) ** 2)/(2*a_max) - a_max
+    return pulse
 
 sym_pi = X_factory(pi, a1_sym, 0, False)
 # sym_pi = X_factory(pi, a1_asym, b1_asym, True)
@@ -500,9 +520,9 @@ def GRAPE(T, n, N, rho_0, rho_f, tau_c, eta_0, stepsize, amps, epsilon=0.01):
         # Eq. 13
         new_amp = a_m + epsilon*a_max*d_phi_d_am
         if new_amp <= -a_max:
-            new_amp = .95 * -a_max
+            new_amp = .99 * -a_max
         if new_amp >= a_max:
-            new_amp = .95 * a_max
+            new_amp = .99 * a_max
         # new_amp = max(new_amp, -a_max)
         # new_amp = min(new_amp, a_max)
         return new_amp
@@ -594,8 +614,8 @@ tau_c_f = 32. * hoa
 ###
 # Performance Params
 ###
-dtau_c = .32 * hoa
-N = 4000 # number of RTN trajectories
+dtau_c = 2.32 * hoa
+N = 3000 # number of RTN trajectories
 stepsize = 0.022 # Step-forward matrices step size, dont lower
 
 ###
@@ -634,20 +654,24 @@ if checkGrape:
     plt.show()
     raw_input()
 
-T_G = 5. * hoa # sousa figure 2
-n = 8 # number of different pulse amplitudes
-epsilon = 0.009 # amount each gradient step can influence amps
-grape_steps = 3000 # number of optimization steps
+T_G = 7*pi/3. * hoa # sousa figure 2
+n = 7 # number of different pulse amplitudes
+epsilon = 0.025 # amount each gradient step can influence amps
+grape_steps = 2500 # number of optimization steps
 ### Grape
+# doGrape = True
 doGrape = False
 if doGrape:
-    tau_grape = 5.
-    init_amps = [a_max for i in range(n)]
+    tau_grape = 30.
+    # init_amps = [a_max for i in range(n)]
+    inits = [-0.7,0.7,0.7,0.7,0.7,0.7,-0.7]
+    # inits = [-0.98,0.98,0.98,0.98,0.98,0.98,-0.98]
+    init_amps = [x*a_max for x in inits]
     grape_amps = init_amps
     for i in range(grape_steps):
         start = time.time()
         grape_amps = GRAPE(T_G, n, 42, rho_0, rho_f, tau_grape, eta_0, stepsize, grape_amps, epsilon)
-        print("grapestep: " + str(time.time() - start))
+        print("grapestep "+str(i)+": " + str(time.time() - start))
         print(grape_amps)
     np.savetxt("data/grape_pulse.txt", grape_amps)
     grape_pulse = aggAmps(grape_amps, T_G)
@@ -718,7 +742,7 @@ p_pi, = plt.plot(p_t, fids_pi, 'b--', label="pi pulse")
 p_c, = plt.plot(p_t, fids_C, 'r-', label="CORPSE pulse")
 p_sc, = plt.plot(p_t, fids_SC, 'r--', label="SCORPSE pulse")
 p_g, = plt.plot(p_t, fids_G, 'g-', label="GRAPE pulse")
-p_sym, = plt.plot(p_t, fids_sym, 'g--', label=sym_label)
+p_sym, = plt.plot(p_t, fids_sym, 'g--', label=r"$f(x) = x^2$; width $\pi$, 2 periods, range $-a_{max}$ to $a_{max}$")
 
 plt.xlabel("tau_c / (hbar / a_max)")
 plt.ylabel("fidelity \\phi(rho_f, rho_0)")
@@ -760,6 +784,7 @@ for i in range(len(tau_cs)):
 
     doC = False
     doSC = True
+    doSym = True
 
     rho_pi, Us = ezGenerate_Rho(a_pi, t_end, tau_c, eta_0, rho_0, N, stepsize)
     fid_pi = fidSingleTxDirect(rho_f, rho_pi, T_pi)
@@ -779,9 +804,16 @@ for i in range(len(tau_cs)):
     else:
         fids_SC.append(0.99)
 
-    rho_sym, us = ezGenerate_Rho(sym_pi, t_end, tau_c, eta_0, rho_0, N, stepsize)
-    fid_sym = fidSingleTxDirect(rho_f, rho_sym, tau)
-    fids_sym.append(fid_sym)
+    # rho_sym, us = ezGenerate_Rho(sym_pi, t_end, tau_c, eta_0, rho_0, N, stepsize)
+    # fid_sym = fidSingleTxDirect(rho_f, rho_sym, tau)
+    # fids_sym.append(fid_sym)
+    mypulse = x2p(np.pi, 2.0)
+    if doSym:
+        rho_sym, us = ezGenerate_Rho(mypulse, t_end, tau_c, eta_0, rho_0, N, stepsize)
+        fid_sym = fidSingleTxDirect(rho_f, rho_sym, T_SC)
+        fids_sym.append(fid_sym)
+    else:
+        fids_sym.append(0.982)
 
     if doGrape:
         rho_G, Us = ezGenerate_Rho(grape_pulse, t_end, tau_c, eta_0, rho_0, N, stepsize)

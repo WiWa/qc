@@ -529,8 +529,8 @@ tau_c_f = 30. * hoa
 ###
 # Performance Params
 ###
-dtau_c = 0.32 * hoa
-N = 1600 # number of RTN trajectories
+dtau_c = 3.32 * hoa
+N = 400 # number of RTN trajectories
 stepsize = 0.025 # Step-forward matrices step size
 
 ###
@@ -569,15 +569,17 @@ if checkGrape:
     plt.show()
     raw_input()
 
-T_G = 5. * hoa # sousa figure 2
+# T_G = 5. * hoa # sousa figure 2
+T_G = T_SC # can just make them the same
 n = 8 # number of different pulse amplitudes
 epsilon = 0.009 # amount each gradient step can influence amps
 grape_steps = 3000 # number of optimization steps
 ### Grape
 doGrape = True
 if doGrape:
-    tau_grape = 5.
-    init_amps = [a_max for i in range(n)]
+    tau_grape = 30. # optimize for this point...
+    # init_amps = [a_max for i in range(n)]
+    init_amps = [x*a_max for x in [-1, -1, 1, 1, 1, 1, 1, -1]]
     grape_amps = init_amps
     for i in range(grape_steps):
         start = time.time()

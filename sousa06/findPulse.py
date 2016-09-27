@@ -105,13 +105,27 @@ def a_SC(t):
         return -a_max
     return 0
 
+# parabolic pulse
+# positive - 0, vs positive - negative
+# parameters: width, number of periods, phase?
+
+def x2p(width, periods):
+    def pulse(t):
+        if t < 0:
+            return 0
+        if t > width * periods:
+            return 0
+        # return (((t % width) - (width/2.0)) ** 2)/a_max
+        return (((t % width) - (width/2.0)) ** 2)/(2*a_max) - a_max
+    return pulse
+
 ###### Sym/Antisym pulses
 # 2.0 for "normal"
 # ~4.6 for "capped"
 # ~7.8 for normed
-tau = (5.1 * pi / 3) * hoa # Electron relaxation time; idk the "real" value :)
+tau = (4.6 * pi / 3) * hoa # Electron relaxation time; idk the "real" value :)
 # See paper by S. Pasini for constants
-a1_sym = -2.159224
+a1_sym = -2.159224 # this is real good :)
 a2_sym = -5.015588
 a1_asym = 5.263022
 b1_asym = 17.850535
@@ -120,19 +134,24 @@ b2_asym = 15.634390 # * (1/tau)
 # Makes X(t) driving pulse function
 # theta is either pi or pi/2
 # a, b are constants
-# This pulse lasts a single period: 0 -> tau
+# This pulse lasts a 1.5 periods: 0 -> tau * 1.5
+# Why 1.5? You will notice the error-correcting pulses, SCORPSE
+# and CORPSE, do so.
+endpulse = tau*1.5
 def X_factory(theta, a, b, antisym, tau=tau):
     norm = -2.0 * a + theta
     def X_sym(t):
         if t < 0:
             return 0
-        elif t > tau:
+        elif t > endpulse:
             return 0
+        t += tau * 0.75 # start at a min point, like SCORPSE
         _1 = theta / 2
         _2 = (a - _1) * cos((2 * pi  / tau) * t)
         _3 = a * cos((4 * pi  / tau) * t)
         return minabs((_1 + _2 - _3) * a_max, a_max) # capped
         # return (_1 + _2 - _3) * a_max / norm # normed
+        # return invertcap((_1 + _2 - _3) * a_max, a_max) # inverted
 
     def X_antisym(t):
         if t < 0:
@@ -144,6 +163,7 @@ def X_factory(theta, a, b, antisym, tau=tau):
         _3 = (b/2) * sin((4 * pi  / tau) * t)
         return minabs((_1 + _2 - _3) * a_max, a_max)
         # return (_1 + _2 - _3) * a_max / norm
+        # return invertcap((_1 + _2 - _3) * a_max, a_max) # inverted
 
     # def s(t):
     #     if t <= 0 or t > pi:
@@ -160,6 +180,9 @@ def minabs(x, y):
     if x < 0:
         return -y
     return y
+
+def invertcap(x, y):
+    return pow(-1, int(x/y))* x % y
 
 # sym_pi = X_factory(pi, a1_asym, b1_asym, True)
 
@@ -447,7 +470,7 @@ times = [0.2* hoa, 3.0* hoa, 15.0* hoa]
 ###
 # Performance Params
 ###
-N = 420 # number of RTN trajectories
+N = 1420 # number of RTN trajectories
 stepsize = 0.024 # Step-forward matrices step size, dont lower
 
 ###
@@ -464,14 +487,24 @@ if not profiling and parallel:
 #     tau_c += dtau_c
 #     tau_cs.append(tau_c)
 # tau_cs =
-tau_start = ( 4.1 * pi / 3 )* hoa
-tau_end = ( 7. * pi / 3 )* hoa
-dtau = 0.1 * hoa
+# tau_start = ( 1.95 * pi / 3 )* hoa
+# tau_end = ( 2.25 * pi / 3 )* hoa
+tau_start = (6.6 * pi / 3) * hoa
+tau_end = (7.4 * pi / 3) * hoa
+dtau = 0.03 * hoa
 t_ = tau_start
 taus = []
 while t_ < tau_end:
     taus.append(t_)
     t_ += dtau
+a_start = -3.0
+a_end = 3.0
+da = 0.05
+alist = []
+a_ = a_start
+while a_ <= a_end:
+    alist.append(a_)
+    a_ += da
 # sym_pis = [X_factory(pi, a1_sym, 0, False, tau=t_) for t_ in taus]
 sym1 = []
 sym3 = []
@@ -502,36 +535,75 @@ plt.legend(loc='best')
 plt.show()
 plt.pause(0.0001)
 
+def SCORPSEfac(partition):
+    def a_SC(t):
+        if t <= 0:
+            return 0
+        if t < ((pi / 3) * hoa):
+            return -a_max
+        if t <= 2 * pi * hoa:
+            return a_max
+        if t < (partition):
+            return -a_max
+        return 0
+    return a_SC
+
 
 start = time.time()
 prev_time = -1
-for i in range(len(taus)):
-    tau = taus[i]
+# xlist = [1,2,3,4] # periods
+periodlist = list(np.arange(0.5, 5.1, 0.5)) # period
+# width ~ pi is nice
+widthlist = list(np.arange(0.5*np.pi, 2.01*pi, 0.1*pi)) # width
+# widthlist = list(np.arange(3.5*np.pi, 5.01*pi, 0.1*pi)) # width
+width_period_list = list([(w,p) for p in periodlist for w in widthlist])
+xlist = widthlist
+# w_start = 0.5*np.pi
+# w_end = 2.0*np.pi
+# w_ = w_start
+# while w_ <= w_end:
+#     xlist.append()
+#     w_ += dw
+for i in range(len(xlist)):
+    # tau = taus[i]
+    # a_sym = alist[i]
+    print r"%i/%i"%(i, len(xlist))
+    # x = a_sym
+    w = xlist[i]
+    # x = w + (4. * np.pi * p)
+    x = w
+    p_t.append(x)
 
-    p_t.append(tau)
-    sym_pi = X_factory(pi, a2_sym / tau, 0, False, tau=tau)
-    sym_pi = X_factory(pi, a1_asym / tau, b1_asym/tau, True, tau=tau)
+    # sym_pi is a wrong name :)
+    # sym_pi = x2p(np.pi, x) # vary periods
+    # didn't seem like 2+ periods were different
+    # sym_pi = x2p(x, 2.0) # vary width
+    sym_pi = x2p(w, 2.0) # vary both
+
+    # sym_pi = X_factory(pi, a_sym / tau, 0, False, tau=tau)
+    # sym_pi = X_factory(pi, a1_asym / tau, b1_asym/tau, True, tau=tau)
     # sym_pi = X_factory(pi, a2_asym / tau, b2_asym/tau, True, tau=tau)
-    sym_pi = X_factory(pi, a1_sym / tau, 0, False, tau=tau)
+    # sym_pi = X_factory(pi, a1_sym / tau, 0, False, tau=tau)
+    # sym_pi = SCORPSEfac(tau)
 
     rho_sym, us = ezGenerate_Rho(sym_pi, t_end, times[0], eta_0, rho_0, N, stepsize)
     fid_sym = fidSingleTxDirect(rho_f, rho_sym, tau)
     sym1.append(fid_sym)
 
     if fid_sym > 0.990:
-        print("1@ " + str(tau) + ", " + str(fid_sym))
+        print("1@ " + str(x) + ", " + str(fid_sym))
 
     rho_sym, us = ezGenerate_Rho(sym_pi, t_end, times[1], eta_0, rho_0, N, stepsize)
     fid_sym = fidSingleTxDirect(rho_f, rho_sym, tau)
     sym3.append(fid_sym)
     if fid_sym > 0.990:
-        print("3@ " + str(tau) + ", " + str(fid_sym))
+        print("3@ " + str(x) + ", " + str(fid_sym))
 
     rho_sym, us = ezGenerate_Rho(sym_pi, t_end, times[2], eta_0, rho_0, N, stepsize)
     fid_sym = fidSingleTxDirect(rho_f, rho_sym, tau)
     sym15.append(fid_sym)
     if fid_sym > 0.990:
-        print("15@ " + str(tau) + ", " + str(fid_sym))
+        print("15@ " + str(x) + ", " + str(fid_sym))
 
     update_plots(fig, ax, \
         [p1, p3, p15], \
