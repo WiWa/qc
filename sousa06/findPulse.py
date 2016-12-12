@@ -161,15 +161,15 @@ def minmax(f, s, e):
     mi = min(fs)
     return ma, mi
 
-times = [0.2* hoa, 3.0* hoa, 18.0* hoa]
+times = [0.2* hoa, 3.0* hoa, 12.0* hoa]
 ###
 # Performance Params
 ###
-N = 1420 # number of RTN trajectories
-stepsize = 0.023 # Step-forward matrices step size, dont lower
+N = 1024 # number of RTN trajectories
+stepsize = 0.024 # Step-forward matrices step size, dont lower
 
 ###
-t_end = 18.42 # end of RTN
+t_end = times[2] + 0.32 # end of RTN
 
 cpus = 8
 if not profiling and parallel:
@@ -534,7 +534,7 @@ while a_ <= a_end:
 # sym_pis = [X_factory(pi, a1_sym, 0, False, tau=t_) for t_ in taus]
 sym1 = []
 sym3 = []
-sym15 = []
+sym12 = []
 
 eta_0_a_max = eta_0 / a_max
 print("""
@@ -553,7 +553,7 @@ fig, ax = plt.subplots()
 
 p1, = plt.plot(p_t, sym1, 'b--', label="t=1")
 p3, = plt.plot(p_t, sym3, 'r-', label="t=3")
-p15, = plt.plot(p_t, sym15, 'g--', label="t=18")
+p15, = plt.plot(p_t, sym12, 'g--', label="t=12")
 
 plt.xlabel(r"$\tau$ in $\hbar / a_max$")
 plt.ylabel(r"$\phi(\rho_f, \rho_0)$")
@@ -622,24 +622,24 @@ for i in range(len(xlist)):
     fid_2 = fidSingleTxDirect(rho_f, rho_pulse2, tau)
     sym1.append(fid_0)
     sym3.append(fid_1)
-    sym15.append(fid_2)
+    sym12.append(fid_2)
 
-    if fid_0 > 0.990:
+    if fid_0 > 0.985:
         print("1@ " + str(x) + ", " + str(fid_0))
-    if fid_1 > 0.985:
+    if fid_1 > 0.980:
         print("3@ " + str(x) + ", " + str(fid_1))
     if fid_2 > 0.980:
-        print("18@ " + str(x) + ", " + str(fid_2))
+        print("12@ " + str(x) + ", " + str(fid_2))
 
     update_plots(fig, ax, \
         [p1, p3, p15], \
         [p_t, p_t, p_t], \
-        [sym1, sym3, sym15] )
+        [sym1, sym3, sym12] )
 
 np.savetxt(base+"figfindTaus.txt", taus)
 np.savetxt(base+"figfind1.txt", sym1)
 np.savetxt(base+"figfind3.txt", sym3)
-np.savetxt(base+"figfind18.txt", sym15)
+np.savetxt(base+"figfind12.txt", sym12)
 fig.savefig(base+"figfind.png")
 
 print("Done! Press Enter to exit.")
