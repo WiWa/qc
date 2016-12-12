@@ -489,8 +489,8 @@ plt.ion()
 fig, ax = plt.subplots()
 
 p1, = plt.plot(p_t, sym1, 'b--', label="t=1")
-p3, = plt.plot(p_t, sym3, 'r-', label="t=18")
-p15, = plt.plot(p_t, sym15, 'g--', label="t=80")
+p3, = plt.plot(p_t, sym3, 'r-', label="t=3")
+p15, = plt.plot(p_t, sym15, 'g--', label="t=18")
 
 plt.xlabel(r"$\tau$ in $\hbar / a_max$")
 plt.ylabel(r"$\phi(\rho_f, \rho_0)$")
@@ -582,8 +582,8 @@ for i in range(len(xlist)):
 
 np.savetxt(base+"figfindTaus.txt", taus)
 np.savetxt(base+"figfind1.txt", sym1)
-np.savetxt(base+"figfind18.txt", sym3)
-np.savetxt(base+"figfind80.txt", sym15)
+np.savetxt(base+"figfind3.txt", sym3)
+np.savetxt(base+"figfind18.txt", sym15)
 fig.savefig(base+"figfind.png")
 
 print("Done! Press Enter to exit.")
