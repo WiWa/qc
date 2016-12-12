@@ -121,7 +121,7 @@ def X_factory(theta, a, b, antisym):
     def fullnorm(t):
         return (2*underlying(t) / (maxdiff)) - a_max # the 1 comes from amax
 
-    return fullnorm
+    return simplenorm
 
 def minabs(x, y):
     if abs(x) < abs(y):
@@ -486,7 +486,7 @@ p1, = plt.plot(p_t, sym1, 'b--', label="t=1")
 p3, = plt.plot(p_t, sym3, 'r-', label="t=3")
 p15, = plt.plot(p_t, sym15, 'g--', label="t=18")
 
-plt.xlabel(r"$\tau in (\hbar / \a_max)")
+plt.xlabel(r"$\tau in (\hbar / a_max)$")
 plt.ylabel(r"$\phi(\rho_f, \rho_0)$")
 plt.legend(loc='best')
 plt.show()
@@ -546,6 +546,7 @@ for i in range(len(xlist)):
     # sym_pi = X_factory(pi, a1_sym / tau, 0, False, tau=tau)
     # sym_pi = SCORPSEfac(tau)
 
+    tau = x
     rho_sym, us = ezGenerate_Rho(sym_pi, t_end, times[0], eta_0, rho_0, N, stepsize)
     fid_sym = fidSingleTxDirect(rho_f, rho_sym, tau)
     sym1.append(fid_sym)
@@ -570,11 +571,13 @@ for i in range(len(xlist)):
         [p_t, p_t, p_t], \
         [sym1, sym3, sym15] )
 
-np.savetxt("data/figfindTaus", taus)
-np.savetxt("data/figfind1.txt", sym1)
-np.savetxt("data/figfind3.txt", sym3)
-np.savetxt("data/figfind18.txt", sym15)
-fig.savefig("data/figfind.png")
+base = "data/findsimplenorm/"
+
+np.savetxt(base+"figfindTaus.txt", taus)
+np.savetxt(base+"figfind1.txt", sym1)
+np.savetxt(base+"figfind3.txt", sym3)
+np.savetxt(base+"figfind18.txt", sym15)
+fig.savefig(base+"figfind.png")
 
 print("Done! Press Enter to exit.")
 raw_input()
