@@ -549,12 +549,12 @@ def ezmap(f, xs):
 p_t = []
 
 # XXX SHAPE
-pulseshape = sawtooth(2)
-tis = np.linspace(0, 7, 1000)
-pulseshape_data = [pulseshape(ti) for ti in tis]
-plt.figure()
-plt.plot(tis, pulseshape_data, 'b-', label="sawtooth")
-plt.show()
+# pulseshape = sawtooth(2)
+# tis = np.linspace(0, 7, 1000)
+# pulseshape_data = [pulseshape(ti) for ti in tis]
+# plt.figure()
+# plt.plot(tis, pulseshape_data, 'b-', label="sawtooth")
+# plt.show()
 
 plt.ion()
 fig, ax = plt.subplots()
