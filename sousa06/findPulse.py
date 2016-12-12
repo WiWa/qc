@@ -135,7 +135,7 @@ def X_factory(theta, constPair, antisym, tau, a=None, b=None):
 
 # XXX here
 
-base = "data/asympulse/2_full/"
+base = "data/sawtooth/p2_x-w_full/"
 
 tau_start = (3.5 * pi/ 3.0) * hoa
 tau_end = (16 * pi / 3.0) * hoa
@@ -548,6 +548,13 @@ def ezmap(f, xs):
 
 p_t = []
 
+# XXX SHAPE
+pulseshape = sawtooth(2)
+tis = np.linspace(0, 7, 1000)
+pulseshape_data = [pulseshape(ti) for ti in tis]
+plt.figure()
+plt.plot(tis, pulseshape_data, 'b-', label="sawtooth")
+
 plt.ion()
 fig, ax = plt.subplots()
 
@@ -593,7 +600,8 @@ xlist = widthlist
 #     w_ += dw
 
 # pulsef = X_factory(pi, a1_sym, 0, False)
-xlist = taus
+# xlist = taus
+xlist = widthlist
 for i in range(len(xlist)):
     # tau = taus[i]
     # a_sym = alist[i]
@@ -611,7 +619,8 @@ for i in range(len(xlist)):
     constpair = 2
     antisym = True
 
-    pulsef = X_factory(theta, constpair, antisym, tau)
+    # pulsef = X_factory(theta, constpair, antisym, tau)
+    pulsef = sawtooth(x)
     # XXX XXX
 
     rho_pulse0, us0 = ezGenerate_Rho(pulsef, t_end, times[0], eta_0, rho_0, N, stepsize)
