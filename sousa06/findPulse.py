@@ -120,6 +120,8 @@ def X_factory(theta, a, b, antisym):
         return underlying(t) / max(abs(ma), abs(mi))
     def fullnorm(t):
         return (2*underlying(t) / (maxdiff)) - a_max # the 1 comes from amax
+    def capped(t):
+        return minabs(underlying(t), a_max)
 
     return simplenorm
 
@@ -446,9 +448,9 @@ if not profiling and parallel:
     print("POOL")
     pool = Pool(processes=cpus)
 
-tau_start = (0.5 * pi) * hoa
-tau_end = (7.4 * pi / 3) * hoa
-dtau = 0.2 * hoa
+tau_start = (2.0 * pi/ 3.0) * hoa
+tau_end = (25 * pi / 3.0) * hoa
+dtau = 0.35 * hoa
 t_ = tau_start
 taus = []
 while t_ < tau_end:
@@ -522,6 +524,8 @@ xlist = widthlist
 # while w_ <= w_end:
 #     xlist.append()
 #     w_ += dw
+
+sym_pi = X_factory(pi, a2_sym, 0, False)
 xlist = taus
 for i in range(len(xlist)):
     # tau = taus[i]
@@ -571,7 +575,7 @@ for i in range(len(xlist)):
         [p_t, p_t, p_t], \
         [sym1, sym3, sym15] )
 
-base = "data/findsimplenorm/"
+base = "data/find_sym_a2_simple/"
 
 np.savetxt(base+"figfindTaus.txt", taus)
 np.savetxt(base+"figfind1.txt", sym1)
