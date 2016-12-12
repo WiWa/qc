@@ -122,7 +122,12 @@ def X_factory(theta, constPair, antisym, tau, a=None, b=None):
     underlying = X_sym
     if antisym:
         underlying = X_antisym
-    ma, mi = minmax(underlying, 0, tau)
+
+    return donorm(undunderlying, 0, tau, type="full")
+
+def donorm(underlying,s,e, normproc="simple"):
+
+    ma, mi = minmax(underlying, s,e)
     maxdiff = abs(ma - mi)
     def simple(t):
         return underlying(t) / max(abs(ma), abs(mi))
@@ -130,11 +135,18 @@ def X_factory(theta, constPair, antisym, tau, a=None, b=None):
         return (2*underlying(t) / (maxdiff)) - a_max # the 1 comes from amax
     def capped(t):
         return minabs(underlying(t), a_max)
-
-    return full
+    if normproc == "simple":
+        return simple
+    if normproc == "full":
+        return full
+    if normproc == "capped":
+        return capped
+    raise Exception("bad normproc: " + normproc)
 
 # XXX here
 
+# naming: data/[pulse]/params
+# p2: period=2, x-w: vary width, full: normproc="full"
 base = "data/sawtooth/p2_x-w_full/"
 
 tau_start = (3.5 * pi/ 3.0) * hoa
@@ -193,7 +205,7 @@ def rectifier(width, periods=2):
             return 0
         if t > width * periods:
             return 0
-        return sin(t/pi * width)
+        return sin((t % width)*pi/width)
     return pulse
 def x2p(width, periods=2):
     # >= 0
@@ -549,12 +561,12 @@ def ezmap(f, xs):
 p_t = []
 
 # XXX SHAPE
-# pulseshape = sawtooth(2)
-# tis = np.linspace(0, 7, 1000)
-# pulseshape_data = [pulseshape(ti) for ti in tis]
-# plt.figure()
-# plt.plot(tis, pulseshape_data, 'b-', label="sawtooth")
-# plt.show()
+pulseshape = rectifier(2)
+tis = np.linspace(0, 7, 1000)
+pulseshape_data = [pulseshape(ti) for ti in tis]
+plt.figure()
+plt.plot(tis, pulseshape_data, 'b-', label="sawtooth")
+plt.show()
 
 plt.ion()
 fig, ax = plt.subplots()
