@@ -176,15 +176,47 @@ if not profiling and parallel:
     print("POOL")
     pool = Pool(processes=cpus)
 
-def x2p(width, periods):
+# XXX fourier
+def sawtooth(width, periods=2):
+    # normalize to -1 -> 1 for now
     def pulse(t):
         if t < 0:
             return 0
         if t > width * periods:
             return 0
-        # return (((t % width) - (width/2.0)) ** 2)/a_max
-        return (((t % width) - (width/2.0)) ** 2)/(2*a_max) - a_max
+        return 2*(t % width)/width - 1
     return pulse
+def rectifier(width, periods=2):
+    # 0 to 1, width can be in units of pi
+    def pulse(t):
+        if t < 0:
+            return 0
+        if t > width * periods:
+            return 0
+        return sin(t/pi * width)
+    return pulse
+def x2p(width, periods=2):
+    # >= 0
+    def pulse(t):
+        if t < 0:
+            return 0
+        if t > width * periods:
+            return 0
+        return ((t % width) - (width/2.0)) ** 2
+        # return (((t % width) - (width/2.0)) ** 2)/(2*a_max) - a_max
+    return pulse
+def square(width, periods=2):
+    # -1 to 1
+    def pulse(t):
+        if t < 0:
+            return 0
+        if t > width * periods:
+            return 0
+        if t % width < 0.5*width:
+            return 1
+        return -1
+    return pulse
+
 
 # Systematic Error
 def eta_sys(t):
