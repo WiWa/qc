@@ -69,45 +69,74 @@ dm_1 = np.array([ [0, 0], cb_1 ], np.complex128).T
 # hoa = (hbar / a_max)
 hoa = 1.
 
-# Eq. 15
-# Pi pulse
-T_pi = pi * hoa
-def a_pi(t):
-    if 0 <= t and t <= T_pi:
-        return a_max
-    return 0
+###### Sym/Antisym pulses
+# 2.0 for "normal"
+# ~4.9 for "capped", 3tauc < .99; 15tauc ~ .98; (useless)
+# ~7.9 for normed, even worse than capped
+tau = 4.9 * hoa # Electron relaxation time; idk the "real" value :)
+# See paper by S. Pasini for constants
+a1_sym = -2.159224 * (1/tau)
+a2_sym = -5.015588 * (1/tau)
+a1_asym = 5.263022 * (1/tau)
+b1_asym = 17.850535 * (1/tau)
+a2_asym = -16.809353 * (1/tau)
+b2_asym = 15.634390 * (1/tau)
+# Makes X(t) driving pulse function
+# theta is either pi or pi/2
+# a, b are constants
+# This pulse lasts a single period: 0 -> tau
+def X_factory(theta, a, b, antisym):
+    # norm = -2.0 * a + theta
+    def X_sym(t):
+        if t < 0:
+            return 0
+        elif t > tau:
+            return 0
+        _1 = theta / 2
+        _2 = (a - _1) * cos((2 * pi  / tau) * t)
+        _3 = a * cos((4 * pi  / tau) * t)
+        # return minabs((_1 + _2 - _3) * a_max, a_max)
+        return (_1 + _2 - _3)
+        # return (_1 + _2 - _3) * a_max / norm # normed
 
-# Eq. 16
-# CORPSE
-T_C = (13 * pi / 3) * hoa
-def a_C(t):
-    if t <= 0:
-        return 0
-    if t < ((pi / 3) * hoa):
-        return a_max
-    if t <= ((2 * pi) * hoa):
-        return -a_max
-    if t < (T_C):
-        return a_max
-    return 0
+    def X_antisym(t):
+        if t < 0:
+            return 0
+        elif t > tau:
+            return 0
+        _1 = X_sym(t)
+        _2 = b * sin((2 * pi  / tau) * t)
+        _3 = (b/2) * sin((4 * pi  / tau) * t)
+        # return minabs((_1 + _2 - _3) * a_max, a_max)
+        return (_1 + _2 - _3)
+        # return (_1 + _2 - _3) * a_max / norm # normed
 
-# Eq. 17
-# SCORPSE, i.e. Short CORPSE
-T_SC = (7 * pi / 3) * hoa
-def a_SC(t):
-    if t <= 0:
-        return 0
-    if t < ((pi / 3) * hoa):
-        return -a_max
-    if t <= ((2 * pi) * hoa):
-        return a_max
-    if t < (T_SC):
-        return -a_max
-    return 0
+    underlying = X_sym
+    if antisym:
+        underlying = X_antisym
+    ma, mi = minmax(underlying, 0, tau)
+    maxdiff = abs(ma - mi)
+    def simplenorm(t):
+        return underlying(t) / max(abs(ma), abs(mi))
+    def fullnorm(t):
+        return (2*underlying(t) / (maxdiff)) - a_max # the 1 comes from amax
 
-# parabolic pulse
-# positive - 0, vs positive - negative
-# parameters: width, number of periods, phase?
+    return fullnorm
+
+def minabs(x, y):
+    if abs(x) < abs(y):
+        return x
+    if x < 0:
+        return -y
+    return y
+
+# maximize f from s to e
+def minmax(f, s, e):
+    ts = np.linspace(s, e, 3000)
+    fs = [(f(t)) for t in ts]
+    ma = max(fs)
+    mi = min(fs)
+    return ma, mi
 
 def x2p(width, periods):
     def pulse(t):
@@ -119,72 +148,8 @@ def x2p(width, periods):
         return (((t % width) - (width/2.0)) ** 2)/(2*a_max) - a_max
     return pulse
 
-###### Sym/Antisym pulses
-# 2.0 for "normal"
-# ~4.6 for "capped"
-# ~7.8 for normed
-tau = (4.6 * pi / 3) * hoa # Electron relaxation time; idk the "real" value :)
-# See paper by S. Pasini for constants
-a1_sym = -2.159224 # this is real good :)
-a2_sym = -5.015588
-a1_asym = 5.263022
-b1_asym = 17.850535
-a2_asym = -16.809353
-b2_asym = 15.634390 # * (1/tau)
-# Makes X(t) driving pulse function
-# theta is either pi or pi/2
-# a, b are constants
-# This pulse lasts a 1.5 periods: 0 -> tau * 1.5
-# Why 1.5? You will notice the error-correcting pulses, SCORPSE
-# and CORPSE, do so.
-endpulse = tau*1.5
-def X_factory(theta, a, b, antisym, tau=tau):
-    norm = -2.0 * a + theta
-    def X_sym(t):
-        if t < 0:
-            return 0
-        elif t > endpulse:
-            return 0
-        t += tau * 0.75 # start at a min point, like SCORPSE
-        _1 = theta / 2
-        _2 = (a - _1) * cos((2 * pi  / tau) * t)
-        _3 = a * cos((4 * pi  / tau) * t)
-        return minabs((_1 + _2 - _3) * a_max, a_max) # capped
-        # return (_1 + _2 - _3) * a_max / norm # normed
-        # return invertcap((_1 + _2 - _3) * a_max, a_max) # inverted
-
-    def X_antisym(t):
-        if t < 0:
-            return 0
-        elif t > tau:
-            return 0
-        _1 = X_sym(t)
-        _2 = b * sin((2 * pi  / tau) * t)
-        _3 = (b/2) * sin((4 * pi  / tau) * t)
-        return minabs((_1 + _2 - _3) * a_max, a_max)
-        # return (_1 + _2 - _3) * a_max / norm
-        # return invertcap((_1 + _2 - _3) * a_max, a_max) # inverted
-
-    # def s(t):
-    #     if t <= 0 or t > pi:
-    #         return 0
-    #     return a_max
-    # return s
-    if antisym:
-        return X_antisym
-    return X_sym
-
-def minabs(x, y):
-    if abs(x) < abs(y):
-        return x
-    if x < 0:
-        return -y
-    return y
-
-def invertcap(x, y):
-    return pow(-1, int(x/y))* x % y
-
-# sym_pi = X_factory(pi, a1_asym, b1_asym, True)
+sym_pi = X_factory(pi, a1_sym, 0, False)
+asym_pi = X_factory(pi, a1_asym, b1_asym, True)
 
 # Systematic Error
 def eta_sys(t):
@@ -466,7 +431,7 @@ eta_0 = Delta
 
 tau_c_0 = 0.2 * hoa
 tau_c_f = 15. * hoa
-times = [0.2* hoa, 3.0* hoa, 15.0* hoa]
+times = [0.2* hoa, 3.0* hoa, 18.0* hoa]
 ###
 # Performance Params
 ###
@@ -474,24 +439,16 @@ N = 1420 # number of RTN trajectories
 stepsize = 0.024 # Step-forward matrices step size, dont lower
 
 ###
-t_end = 15.42 # end of RTN
+t_end = 18.42 # end of RTN
 
 cpus = 8
 if not profiling and parallel:
     print("POOL")
     pool = Pool(processes=cpus)
-#
-# tau_c = tau_c_0
-# tau_cs = [tau_c]
-# while tau_c < tau_c_f:
-#     tau_c += dtau_c
-#     tau_cs.append(tau_c)
-# tau_cs =
-# tau_start = ( 1.95 * pi / 3 )* hoa
-# tau_end = ( 2.25 * pi / 3 )* hoa
-tau_start = (6.6 * pi / 3) * hoa
+
+tau_start = (0.5 * pi) * hoa
 tau_end = (7.4 * pi / 3) * hoa
-dtau = 0.03 * hoa
+dtau = 0.2 * hoa
 t_ = tau_start
 taus = []
 while t_ < tau_end:
@@ -527,10 +484,10 @@ fig, ax = plt.subplots()
 
 p1, = plt.plot(p_t, sym1, 'b--', label="t=1")
 p3, = plt.plot(p_t, sym3, 'r-', label="t=3")
-p15, = plt.plot(p_t, sym15, 'g--', label="t=15")
+p15, = plt.plot(p_t, sym15, 'g--', label="t=18")
 
-plt.xlabel("tau in (hbar / a_max)")
-plt.ylabel("fidelity \\phi(rho_f, rho_0)")
+plt.xlabel(r"$\tau in (\hbar / \a_max)")
+plt.ylabel(r"$\phi(\rho_f, \rho_0)$")
 plt.legend(loc='best')
 plt.show()
 plt.pause(0.0001)
@@ -565,6 +522,7 @@ xlist = widthlist
 # while w_ <= w_end:
 #     xlist.append()
 #     w_ += dw
+xlist = taus
 for i in range(len(xlist)):
     # tau = taus[i]
     # a_sym = alist[i]
@@ -579,7 +537,7 @@ for i in range(len(xlist)):
     # sym_pi = x2p(np.pi, x) # vary periods
     # didn't seem like 2+ periods were different
     # Actually 1.8+ periods
-    sym_pi = x2p(x, 2.0) # vary width
+    # sym_pi = x2p(x, 2.0) # vary width
     # sym_pi = x2p(w, p) # vary both
 
     # sym_pi = X_factory(pi, a_sym / tau, 0, False, tau=tau)
@@ -605,7 +563,7 @@ for i in range(len(xlist)):
     fid_sym = fidSingleTxDirect(rho_f, rho_sym, tau)
     sym15.append(fid_sym)
     if fid_sym > 0.990:
-        print("15@ " + str(x) + ", " + str(fid_sym))
+        print("18@ " + str(x) + ", " + str(fid_sym))
 
     update_plots(fig, ax, \
         [p1, p3, p15], \
@@ -615,7 +573,7 @@ for i in range(len(xlist)):
 np.savetxt("data/figfindTaus", taus)
 np.savetxt("data/figfind1.txt", sym1)
 np.savetxt("data/figfind3.txt", sym3)
-np.savetxt("data/figfind15.txt", sym15)
+np.savetxt("data/figfind18.txt", sym15)
 fig.savefig("data/figfind.png")
 
 print("Done! Press Enter to exit.")
