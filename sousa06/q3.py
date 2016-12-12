@@ -385,12 +385,6 @@ def bch7(A, B):
 # Commutator
 def comm(A, B):
     return np.dot(A, B) - np.dot(B, A)
-# js = generateJumpTimes(15, 1)
-# e = generateEta(js, 1)
-# print([e(t/10.) for t in range(0, 110)])
-# et = integrate.quad(e, 0, 10)
-# print(et)
-
 
 # Generate a rho
 def ezGenerate_Rho(a, t_end, tau_c, eta_0, rho_0, N, stepsize=0.03):
@@ -407,196 +401,10 @@ def ezGenerateU_k(a, t_end, tau_c, eta_0, stepsize=0.03):
 def ezGenerateEta(t_end, tau_c, eta_0):
     return generateEta(generateJumpTimes(t_end, tau_c), eta_0)
 
-# Fidelity of a single transformation rho_0 -> rho_f
-def fidSingleTx(rho_0, N, Us, T, rho_f):
-    rho = generateRho(rho_0, N, Us)
-    return fidSingleTxDirect(rho_f, rho, T)
-
 # Eq. 10
 # Fidelity of a single transformation rho_0 -> rho_f
 def fidSingleTxDirect(rho_f, rho, T):
     return np.trace(np.dot(rho_f.conj().T, rho(T)))
-
-# Eq. 11
-def fidSingleTxFull(rho_0, rho_f, T, N, Us):
-    U_k_ts = [np.array(U_k(T), np.complex128) for U_k in Us]
-    mats = [np.dot(np.dot(rho_f.conj().T, U_k_t), np.dot(rho_0, U_k_t.conj().T)) for U_k_t in U_k_ts]
-    terms = [np.trace(mat) for mat in mats]
-    return (1./N) * sum(terms)
-
-# Eq. 14
-def fid14(Uf, N, Uks):
-    c = np.array(1./(12*N))
-    sigs = [sigmaX, sigmaY, sigmaZ]
-    UfH = Uf.conj().T
-    def term_func(Uk):
-        UkH = Uk.conj().T
-        res = 0.
-        for sig in sigs:
-            red = reduce(np.dot, [Uf, sig, UfH, Uk, sig, UkH])
-            res += np.trace(red)
-        return res
-    terms = map(term_func, Uks)
-    res = np.array(1/2.) + c * sum(terms)
-    return res
-
-identity = np.array([[1,0],[0,1]])
-
-# Tricky with the fact that python lists start from 0
-# Eq. 22
-def makeLambda_mk(U_k, m, rho_f):
-    n = len(U_k)
-    # Product of U_k_n ... U_k_m+1
-    U = U_k[n - 1]
-    for j in range(n-2, m-1, -1):
-        U = np.dot(U, U_k[j])
-    return np.dot(np.dot(U.conj().T, rho_f), U)
-# Eq. 23
-def makeRho_mk(U_k, m, rho_0):
-    # Product of U_k_m ... U_k_1
-    U = U_k[m - 1]
-    for j in range(m-2, -1, -1):
-        U = np.dot(U, U_k[j])
-    return np.dot(np.dot(U, rho_0), U.conj().T)
-
-# Eq. 21
-# T is end of the pulse, n is the number of "sections" (same width)
-# 1 <= m <= n
-def grad_phi_am(T, N, m, Us_mk, rho_0, rho_f):
-    delta_t = T / n
-    c = np.array((-1.j/2) * delta_t / N)
-
-    terms = []
-    res = 0
-    def makeTerm(k):
-        # U_k = Us_mk[k]
-        # Us_nm_k = U_k[m:(n-1)]
-        # # Us_nm_k.reverse()
-        # Us_m1_k = U_k[0:(m-1)]
-        # # Us_m1_k.reverse()
-        #
-        # U_nm_k = reduce(np.dot, reversed(Us_nm_k),identity)
-        # U_nm_kH = U_nm_k.conj().T
-        # U_m1_k = reduce(np.dot, reversed(Us_m1_k),identity)
-        # U_m1_kH = U_m1_k.conj().T
-        #
-        # lambda_mk = reduce(np.dot, [U_nm_kH, rho_f, U_nm_k])
-        # lambda_H = lambda_mk.conj().T
-        # rho_mk = reduce(np.dot, [U_m1_k, rho_0, U_m1_kH])
-        U_k = Us_mk[k]
-        lambda_mk = makeLambda_mk(U_k, m, rho_f)
-        lambda_H = lambda_mk.conj().T
-        rho_mk = makeRho_mk(U_k, m, rho_0)
-        term = np.trace(np.dot(lambda_H, comm(sigmaX, rho_mk)))
-        return term
-    # if parallel:
-    #     terms = pool.map(makeTerm, range(N))
-    # else:
-    terms = map(makeTerm, range(N))
-    res = sum(terms)
-    res = c * res
-    return res
-
-def GRAPE(T, n, N, rho_0, rho_f, tau_c, eta_0, stepsize, amps, epsilon=0.01):
-    pulses = buildGrapePulses(amps, T)
-    ts = np.linspace(0., T, n+1)
-    Us_k = [] # Every U_k is actually a list of U_m
-    new_amps = []
-    def gen_Um(pulse, t0, te):
-        js = generateJumpTimes((te - t0), tau_c)
-        js = [j + t0 for j in js]
-        return generateU_k(pulse, generateEta(js, eta_0, t0, te), stepsize=stepsize, t0=t0, te=te)
-    def genUs_m(m):
-        t0 = ts[m]
-        te = ts[m+1]
-        pulse = pulses[m]
-        t_avg = (t0 + te) / 2.
-        U_m = gen_Um(pulse, t0, te)(te)
-        return U_m
-    for k in range(N):
-        # if not profiling and parallel:
-        #     Us_m = pool.map(genUs_m, range(n))
-        # else:
-        Us_m = map(genUs_m, range(n))
-        Us_k.append(Us_m)
-        # if k == 3:
-        #     Um = reduce(np.dot, Us_m)
-        #     Uk = ezGenerateU_k(a_pi, T, tau_c, eta_0)
-        #     A = np.dot(Um, rho_0)
-        #     B = np.dot(Uk(T), rho_0)
-        #     print(A)
-        #     print(B)
-        #     print(B - A)
-        #     sys.exit()
-    grads = []
-    def makeNewAmps(m):
-        a_m = amps[m]
-        d_phi_d_am = np.real(grad_phi_am(T, N, m, Us_k, rho_0, rho_f))
-        grads.append(d_phi_d_am)
-        # Eq. 13
-        new_amp = a_m + epsilon*a_max*d_phi_d_am
-        if new_amp <= -a_max:
-            new_amp = .99 * -a_max
-        if new_amp >= a_max:
-            new_amp = .99 * a_max
-        # new_amp = max(new_amp, -a_max)
-        # new_amp = min(new_amp, a_max)
-        return new_amp
-    new_amps = map(makeNewAmps, range(n))
-    # print(grads)
-    # for m in range(n):
-    #     a_m = amps[m]
-    #     d_phi_d_am = grad_phi_am(T, N, m, Us_k, rho_0, rho_f)
-    #     # Eq. 13
-    #     new_amp = a_m + epsilon*a_max*d_phi_d_am
-    #     new_amp = max(new_amp, -a_max)
-    #     new_amp = min(new_amp, a_max)
-    #     new_amps.append(new_amp)
-    return new_amps
-
-
-def pulseMaker(t0, te, amp):
-    if t0 == 0.:
-        def pulse(t):
-            if t0 <= t and t <= te:
-                return amp
-            return 0.
-        return pulse
-    else:
-        def pulse(t):
-            if t0 < t and t <= te:
-                return amp
-            return 0.
-        return pulse
-
-def buildGrapePulses(amps, T):
-    n = len(amps)
-    ts = np.linspace(0, T, n + 1)
-    pulses = []
-    for m in range(1, len(ts)):
-        t0 = ts[m-1]
-        te = ts[m]
-        amp = amps[m-1]
-        pulse = pulseMaker(t0, te, amp)
-        pulses.append(pulse)
-    return pulses
-
-def aggAmps(amps, T):
-    def pulse(t):
-        if t < 0 or T < t:
-            return 0
-        dt = T / float(len(amps))
-        # print(dt)
-        time_bin = int(np.floor(t / dt))
-        if time_bin == len(amps):
-            return amps[-1]
-        return amps[time_bin]
-    return pulse
-
-def aggPulse(pulses):
-    def pulse(t):
-        return sum([pulse_section(t) for pulse_section in pulses])
-    return pulse
 
 ####
 
@@ -650,58 +458,6 @@ while tau_c < tau_c_f:
     tau_c += dtau_c
     tau_cs.append(tau_c)
 
-# tau_cs = [0.3, 3.0, 29.] # sanity check
-
-checkGrape = False
-# checkGrape = True
-if checkGrape:
-    pulses = buildGrapePulses([1.,0.5,0.25,0.75,1.],3)
-    ts = np.linspace(0, 3, 1000)
-    az = []
-    for t in ts:
-        dt = 3. / len(pulses)
-        t_bin = int(np.floor((t / dt)))
-        t_bin = min(t_bin, len(pulses) - 1)
-        az.append(pulses[t_bin](t))
-    # print(pulses[0](0.))
-    # print(pulses[0](0))
-    # print(az)
-    plt.plot(ts, az, 'r-')
-    plt.show()
-    raw_input()
-
-T_G = 7*pi/3. * hoa # sousa figure 2
-n = 7 # number of different pulse amplitudes
-epsilon = 0.025 # amount each gradient step can influence amps
-grape_steps = 2500 # number of optimization steps
-### Grape
-# doGrape = True
-doGrape = False
-if doGrape:
-    tau_grape = 30.
-    # init_amps = [a_max for i in range(n)]
-    inits = [-0.7,0.7,0.7,0.7,0.7,0.7,-0.7]
-    # inits = [-0.98,0.98,0.98,0.98,0.98,0.98,-0.98]
-    init_amps = [x*a_max for x in inits]
-    grape_amps = init_amps
-    for i in range(grape_steps):
-        start = time.time()
-        grape_amps = GRAPE(T_G, n, 42, rho_0, rho_f, tau_grape, eta_0, stepsize, grape_amps, epsilon)
-        print("grapestep "+str(i)+": " + str(time.time() - start))
-        print(grape_amps)
-    np.savetxt("data/grape_pulse.txt", grape_amps)
-    grape_pulse = aggAmps(grape_amps, T_G)
-else:
-    T_G = T_pi
-    grape_pulse = aggAmps([a_max,a_max,a_max,a_max], T_G)
-
-doContinue = True
-if not doContinue:
-    sys.exit()
-# grape_pulse = aggPulse(buildGrapePulses([1.,1.,1.,1.], T_pi))
-# print(integrate.quad(grape_pulse, 0, 3.5))
-# print(integrate.quad(a_pi, 0, 3.5))
-# tau_cs = [0.4, 1.8, 3., 5., 10.]
 eta_0_a_max = eta_0 / a_max
 print("""
 rho_0:
@@ -726,8 +482,6 @@ Starting...
 do_pi = True
 do_c = False
 do_sc = True
-# do_g = doGrape
-do_g = False
 do_sym = True
 do_asym = False
 
@@ -741,9 +495,6 @@ if do_c:
 if do_sc:
     fids_SC = []
     fidelities.append(fids_SC)
-if do_g:
-    fids_G = []
-    fidelities.append(fids_G)
 if do_sym:
     fids_sym = []
     fidelities.append(fids_sym)
@@ -767,11 +518,6 @@ if do_asym:
 #     sym: mkInfo(sym_pi, tau)
 #     }
 
-def ezmap(f, xs):
-    if parallel:
-        return pool.map(f, xs)
-    return map(f, xs)
-
 p_t = []
 
 plt.figure()
@@ -780,12 +526,11 @@ if do_sym:
     plt.plot(chi_time, [sym_pi(t) for t in chi_time], "c-", label="Symmetric Pulse shape")
 if do_asym:
     plt.plot(chi_time, [asym_pi(t) for t in chi_time], "m-", label="Antisymmetric Pulse shape")
+plt.legend(loc="best")
 
 plt.ion()
 fig, ax = plt.subplots()
 
-
-sym_label = "Sym pulse, tau="+str(tau)
 pulse_plots =[]
 if do_pi:
     p_pi, = plt.plot(p_t, fids_pi, 'b--', label="pi pulse")
@@ -796,9 +541,6 @@ if do_c:
 if do_sc:
     p_sc, = plt.plot(p_t, fids_SC, 'r--', label="SCORPSE pulse")
     pulse_plots.append(p_sc)
-if do_g:
-    p_g, = plt.plot(p_t, fids_G, 'g-', label="GRAPE pulse")
-    pulse_plots.append(p_g)
     #r"$f(x) = x^2$; width $\pi$, 2 periods, range $-a_{max}$ to $a_{max}$"
 if do_sym:
     p_sym, = plt.plot(p_t, fids_sym, 'c--', label="Symmetric pulse")
@@ -843,11 +585,6 @@ for i in range(len(tau_cs)):
 
     tau_c = tau_cs[i]
     p_t.append(tau_c)
-    # js = generateJumpTimes(t_end, tau_c)
-
-    # doC = False
-    # doSC = True
-    # doSym = True
 
     if do_pi:
         rho_pi, Us = ezGenerate_Rho(a_pi, t_end, tau_c, eta_0, rho_0, N, stepsize)
@@ -869,10 +606,6 @@ for i in range(len(tau_cs)):
         fid_G = fidSingleTxDirect(rho_f, rho_G, T_G)
         fids_G.append(fid_G)
 
-    # rho_sym, us = ezGenerate_Rho(sym_pi, t_end, tau_c, eta_0, rho_0, N, stepsize)
-    # fid_sym = fidSingleTxDirect(rho_f, rho_sym, tau)
-    # fids_sym.append(fid_sym)
-    # mypulse = x2p(np.pi, 2.0)
     if do_sym:
         rho_sym, us = ezGenerate_Rho(sym_pi, t_end, tau_c, eta_0, rho_0, N, stepsize)
         fid_sym = fidSingleTxDirect(rho_f, rho_sym, tau)
@@ -892,42 +625,18 @@ for i in range(len(tau_cs)):
     prev_time = miniend - ministart
 print("time taken: " + str(time.time() - start))
 
-# fig = plt.figure()
-
 if do_pi:
-    np.savetxt("data/fids_pi.txt", fids_pi)
+    np.savetxt("data/q3/fids_pi.txt", fids_pi)
 if do_c:
-    np.savetxt("data/fids_C.txt", fids_C)
+    np.savetxt("data/q3/fids_C.txt", fids_C)
 if do_sc:
-    np.savetxt("data/fids_SC.txt", fids_SC)
-if do_g:
-    np.savetxt("data/fids_G.txt", fids_G)
+    np.savetxt("dataq/q3/fids_SC.txt", fids_SC)
 if do_sym:
-    np.savetxt("data/fids_sym.txt", fids_sym)
+    np.savetxt("data/q3/fids_sym.txt", fids_sym)
 if do_asym:
-    np.savetxt("data/fids_asym.txt", fids_asym)
+    np.savetxt("data/q3/fids_asym.txt", fids_asym)
 
-fig.savefig("data/fig.png")
-#
-# # xnew = np.linspace(tau_cs[0],tau_cs[-1],100)
-# # fids_pi = spline(tau_cs, fids_pi, xnew)
-# # fids_C = spline(tau_cs, fids_C, xnew)
-# # fids_SC = spline(tau_cs, fids_SC, xnew)
-# # xnew = tau_cs
-# plt.plot(tau_cs, fids_pi, 'b--', label="pi pulse")
-# plt.plot(tau_cs, fids_C, 'r-', label="CORPSE pulse")
-# plt.plot(tau_cs, fids_SC, 'r--', label="SCORPSE pulse")
-# plt.plot(tau_cs, fids_G, 'r--', label="GRAPE pulse")
-# # plt.axis([0, 30, 0.975, 1])
-# plt.xlabel("tau_c / (hbar / a_max)")
-# plt.ylabel("fidelity \\phi(rho_f, rho_0)")
-# plt.legend(loc='best')
-#
-# # smooth_ax = p.axes([0.8, 0.025, 0.1, 0.04])
-# # smooth_btn = Button(smooth_ax, 'Smooth', color=axcolor, hovercolor='0.975')
-# # smooth_btn.on_clicked(smooth)
-#
-# plt.show(block=False)
+fig.savefig("data/q3/fig.png")
 
 print("Done! Press Enter to exit.")
 raw_input()
