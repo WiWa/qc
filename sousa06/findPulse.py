@@ -123,7 +123,7 @@ def X_factory(theta, a, b, antisym):
     def capped(t):
         return minabs(underlying(t), a_max)
 
-    return simplenorm
+    return capped
 
 def minabs(x, y):
     if abs(x) < abs(y):
@@ -448,8 +448,8 @@ if not profiling and parallel:
     print("POOL")
     pool = Pool(processes=cpus)
 
-tau_start = (2.0 * pi/ 3.0) * hoa
-tau_end = (25 * pi / 3.0) * hoa
+tau_start = (4.5 * pi/ 3.0) * hoa
+tau_end = (16 * pi / 3.0) * hoa
 dtau = 0.35 * hoa
 t_ = tau_start
 taus = []
@@ -575,7 +575,7 @@ for i in range(len(xlist)):
         [p_t, p_t, p_t], \
         [sym1, sym3, sym15] )
 
-base = "data/find_sym_a2_simple/"
+base = "data/find_sym_a2_capped/"
 
 np.savetxt(base+"figfindTaus.txt", taus)
 np.savetxt(base+"figfind1.txt", sym1)
