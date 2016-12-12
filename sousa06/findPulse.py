@@ -125,7 +125,7 @@ def X_factory(theta, a, b, antisym):
 
     return simple
 
-base = "data/find_sym_a1_simple_longnoise/"
+base = "data/find_asym_1_simple/"
 
 def minabs(x, y):
     if abs(x) < abs(y):
@@ -433,14 +433,14 @@ rho_0 = dm_1
 rho_f = dm_0
 eta_0 = Delta
 
-tau_c_0 = 0.2 * hoa
-tau_c_f = 15. * hoa
-times = [0.2* hoa, 18.0* hoa, 80.0* hoa]
+# tau_c_0 = 0.2 * hoa
+# tau_c_f = 15. * hoa
+times = [0.2* hoa, 3.0* hoa, 18.0* hoa]
 ###
 # Performance Params
 ###
 N = 1420 # number of RTN trajectories
-stepsize = 0.024 # Step-forward matrices step size, dont lower
+stepsize = 0.023 # Step-forward matrices step size, dont lower
 
 ###
 t_end = 18.42 # end of RTN
@@ -450,8 +450,8 @@ if not profiling and parallel:
     print("POOL")
     pool = Pool(processes=cpus)
 
-tau_start = (4.5 * pi/ 3.0) * hoa
-tau_end = (16 * pi / 3.0) * hoa
+tau_start = (3.5 * pi/ 3.0) * hoa
+tau_end = (15 * pi / 3.0) * hoa
 # tau_start = (80 * pi/ 3.0) * hoa
 # tau_end = (82 * pi / 3.0) * hoa
 dtau = 0.35 * hoa
@@ -492,7 +492,7 @@ p1, = plt.plot(p_t, sym1, 'b--', label="t=1")
 p3, = plt.plot(p_t, sym3, 'r-', label="t=18")
 p15, = plt.plot(p_t, sym15, 'g--', label="t=80")
 
-plt.xlabel(r"$\tau in (\hbar / a_max)$")
+plt.xlabel(r"$\tau$ in $\hbar / a_max$")
 plt.ylabel(r"$\phi(\rho_f, \rho_0)$")
 plt.legend(loc='best')
 plt.show()
@@ -529,7 +529,8 @@ xlist = widthlist
 #     xlist.append()
 #     w_ += dw
 
-sym_pi = X_factory(pi/2.0, a1_sym, 0, False)
+# pulsef = X_factory(pi, a1_sym, 0, False)
+pulsef = X_factory(pi, a1_sym, b1_asym, True)
 xlist = taus
 for i in range(len(xlist)):
     # tau = taus[i]
@@ -555,7 +556,7 @@ for i in range(len(xlist)):
     # sym_pi = SCORPSEfac(tau)
 
     tau = x
-    rho_sym, us = ezGenerate_Rho(sym_pi, t_end, times[0], eta_0, rho_0, N, stepsize)
+    rho_sym, us = ezGenerate_Rho(pulsef, t_end, times[0], eta_0, rho_0, N, stepsize)
     fid_sym = fidSingleTxDirect(rho_f, rho_sym, tau)
     sym1.append(fid_sym)
 
@@ -565,14 +566,14 @@ for i in range(len(xlist)):
     rho_sym, us = ezGenerate_Rho(sym_pi, t_end, times[1], eta_0, rho_0, N, stepsize)
     fid_sym = fidSingleTxDirect(rho_f, rho_sym, tau)
     sym3.append(fid_sym)
-    if fid_sym > 0.990:
-        print("18@ " + str(x) + ", " + str(fid_sym))
+    if fid_sym > 0.985:
+        print("3@ " + str(x) + ", " + str(fid_sym))
 
     rho_sym, us = ezGenerate_Rho(sym_pi, t_end, times[2], eta_0, rho_0, N, stepsize)
     fid_sym = fidSingleTxDirect(rho_f, rho_sym, tau)
     sym15.append(fid_sym)
-    if fid_sym > 0.990:
-        print("80@ " + str(x) + ", " + str(fid_sym))
+    if fid_sym > 0.980:
+        print("18@ " + str(x) + ", " + str(fid_sym))
 
     update_plots(fig, ax, \
         [p1, p3, p15], \
