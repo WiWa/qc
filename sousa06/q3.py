@@ -20,6 +20,8 @@ from math import cos, sin
 import linmax
 import dill
 
+hoa = 1.
+
 bch_time = [0.]
 g_time = [0.]
 a_time = [0.]
@@ -32,8 +34,31 @@ th_time = [0.]
 # Mikko Mottonen and Rogerio de Sousa
 ###
 
+# PARAMETERS
+
+do_pi = True
+do_c = False
+do_sc = False
+do_sym = True
+do_asym = False
+
+tau_c_0 = 0.2 * hoa
+tau_c_f = 28. * hoa
+###
+# Performance Params
+###
+dtau_c = 2.32 * hoa
+N = 3000 # number of RTN trajectories
+stepsize = 0.022 # Step-forward matrices step size, dont lower or raise
+
+###
+t_end = tau_c_f + 0.42 * hoa # end of RTN
+
 profiling = False
+cpus = 8
 parallel = (not profiling) and True
+
+###############
 
 
 sigmaX = np.array([    [0., 1.]  ,
@@ -160,11 +185,14 @@ def X_factory(theta, a, b, antisym):
     underlying = X_sym
     if antisym:
         underlying = X_antisym
-    norm = maximize(underlying, 0, tau)
-    def normmed(t):
-        return underlying(t) / norm
+    ma, mi = minmax(underlying, 0, tau)
+    maxdiff = abs(ma - mi)
+    def simplenorm(t):
+        return underlying(t) / max(abs(ma), abs(mi))
+    def fullnorm(t):
+        return (2*underlying(t) / (maxdiff)) - a_max # the 1 comes from amax
 
-    return normmed
+    return fullnorm
 
 def minabs(x, y):
     if abs(x) < abs(y):
@@ -174,10 +202,12 @@ def minabs(x, y):
     return y
 
 # maximize f from s to e
-def maximize(f, s, e):
+def minmax(f, s, e):
     ts = np.linspace(s, e, 3000)
-    m = max([abs(f(t)) for t in ts])
-    return m
+    fs = [(f(t)) for t in ts]
+    ma = max(fs)
+    mi = min(fs)
+    return ma, mi
 
 def x2p(width, periods):
     def pulse(t):
@@ -433,21 +463,6 @@ rho_0 = dm_1
 rho_f = dm_0
 eta_0 = Delta
 
-tau_c_0 = 0.2 * hoa
-tau_c_f = 28. * hoa
-###
-# Performance Params
-###
-dtau_c = 2.32 * hoa
-N = 3000 # number of RTN trajectories
-stepsize = 0.022 # Step-forward matrices step size, dont lower
-
-###
-t_end = tau_c_f + 0.42 * hoa # end of RTN
-
-profiling = False
-
-cpus = 8
 if not profiling and parallel:
     print("POOL")
     pool = Pool(processes=cpus)
@@ -478,12 +493,6 @@ end of RTN:
 
 Starting...
 """.format(**locals()))
-
-do_pi = True
-do_c = False
-do_sc = True
-do_sym = True
-do_asym = False
 
 fidelities = []
 if do_pi:
@@ -550,7 +559,7 @@ if do_asym:
     pulse_plots.append(p_asym)
 
 plt.xlabel(r"$\tau_c / (\hbar / a_{max})$")
-plt.ylabel(r"$fidelity \phi(\rho_f, \rho_0)$")
+plt.ylabel(r"$\phi(\rho_f, \rho_0)$")
 plt.legend(loc='best')
 plt.show()
 plt.pause(0.0001)
@@ -600,11 +609,6 @@ for i in range(len(tau_cs)):
         rho_SC, us = ezGenerate_Rho(a_SC, t_end, tau_c, eta_0, rho_0, N, stepsize)
         fid_SC = fidSingleTxDirect(rho_f, rho_SC, T_SC)
         fids_SC.append(fid_SC)
-
-    if doGrape:
-        rho_G, Us = ezGenerate_Rho(grape_pulse, t_end, tau_c, eta_0, rho_0, N, stepsize)
-        fid_G = fidSingleTxDirect(rho_f, rho_G, T_G)
-        fids_G.append(fid_G)
 
     if do_sym:
         rho_sym, us = ezGenerate_Rho(sym_pi, t_end, tau_c, eta_0, rho_0, N, stepsize)
