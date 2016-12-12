@@ -133,8 +133,18 @@ def X_factory(theta, constPair, antisym, tau, a=None, b=None):
 
     return simple
 
-base = "data/asympulse/find_asym_1_simple_pi2/"
+# XXX here
+
+base = "data/sympulse/find_sym_2_simple/"
+
+tau_start = (3.5 * pi/ 3.0) * hoa
+tau_end = (16 * pi / 3.0) * hoa
+dtau = 0.42 * hoa
+
 print base
+if not os.path.exists(base):
+    print "Creating directory"
+    os.makedirs(base)
 
 def minabs(x, y):
     if abs(x) < abs(y):
@@ -151,11 +161,6 @@ def minmax(f, s, e):
     mi = min(fs)
     return ma, mi
 
-sym_pi = X_factory(pi, a1_sym, 0, False)
-asym_pi = X_factory(pi, a1_asym, b1_asym, True)
-
-pulsef = X_factory(pi/2.0, a1_asym, b1_asym, True)
-
 times = [0.2* hoa, 3.0* hoa, 18.0* hoa]
 ###
 # Performance Params
@@ -170,12 +175,6 @@ cpus = 8
 if not profiling and parallel:
     print("POOL")
     pool = Pool(processes=cpus)
-
-tau_start = (3.5 * pi/ 3.0) * hoa
-tau_end = (16 * pi / 3.0) * hoa
-# tau_start = (80 * pi/ 3.0) * hoa
-# tau_end = (82 * pi / 3.0) * hoa
-dtau = 0.42 * hoa
 
 def x2p(width, periods):
     def pulse(t):
@@ -574,26 +573,31 @@ for i in range(len(xlist)):
     p_t.append(x)
 
 
+    # XXX HERE XXX
     tau = x
+    theta = pi
+    constpair = 2
+    antisym = False
 
-    pulsef = X_factory(pi, a1_sym, 0, False)
+    pulsef = X_factory(theta, constpair, antisym, tau)
+    # XXX HERE XXX
 
     rho_pulse0, us0 = ezGenerate_Rho(pulsef, t_end, times[0], eta_0, rho_0, N, stepsize)
     rho_pulse1, us1 = ezGenerate_Rho(pulsef, t_end, times[1], eta_0, rho_0, N, stepsize)
     rho_pulse2, us2 = ezGenerate_Rho(pulsef, t_end, times[2], eta_0, rho_0, N, stepsize)
-    fid_1 = fidSingleTxDirect(rho_f, rho_pulse0, tau)
-    fid_2 = fidSingleTxDirect(rho_f, rho_pulse1, tau)
-    fid_3 = fidSingleTxDirect(rho_f, rho_pulse2, tau)
+    fid_0 = fidSingleTxDirect(rho_f, rho_pulse0, tau)
+    fid_1 = fidSingleTxDirect(rho_f, rho_pulse1, tau)
+    fid_2 = fidSingleTxDirect(rho_f, rho_pulse2, tau)
     sym1.append(fid_0)
     sym3.append(fid_1)
     sym15.append(fid_2)
 
     if fid_0 > 0.990:
-        print("1@ " + str(x) + ", " + str(fid_sym))
+        print("1@ " + str(x) + ", " + str(fid_0))
     if fid_1 > 0.985:
-        print("3@ " + str(x) + ", " + str(fid_sym))
+        print("3@ " + str(x) + ", " + str(fid_1))
     if fid_2 > 0.980:
-        print("18@ " + str(x) + ", " + str(fid_sym))
+        print("18@ " + str(x) + ", " + str(fid_2))
 
     update_plots(fig, ax, \
         [p1, p3, p15], \
