@@ -116,14 +116,16 @@ def X_factory(theta, a, b, antisym):
         underlying = X_antisym
     ma, mi = minmax(underlying, 0, tau)
     maxdiff = abs(ma - mi)
-    def simplenorm(t):
+    def simple(t):
         return underlying(t) / max(abs(ma), abs(mi))
-    def fullnorm(t):
+    def full(t):
         return (2*underlying(t) / (maxdiff)) - a_max # the 1 comes from amax
     def capped(t):
         return minabs(underlying(t), a_max)
 
-    return capped
+    return simple
+
+base = "data/find_sym_a1_simple_longnoise/"
 
 def minabs(x, y):
     if abs(x) < abs(y):
@@ -433,7 +435,7 @@ eta_0 = Delta
 
 tau_c_0 = 0.2 * hoa
 tau_c_f = 15. * hoa
-times = [0.2* hoa, 3.0* hoa, 18.0* hoa]
+times = [0.2* hoa, 18.0* hoa, 80.0* hoa]
 ###
 # Performance Params
 ###
@@ -450,6 +452,8 @@ if not profiling and parallel:
 
 tau_start = (4.5 * pi/ 3.0) * hoa
 tau_end = (16 * pi / 3.0) * hoa
+# tau_start = (80 * pi/ 3.0) * hoa
+# tau_end = (82 * pi / 3.0) * hoa
 dtau = 0.35 * hoa
 t_ = tau_start
 taus = []
@@ -485,8 +489,8 @@ plt.ion()
 fig, ax = plt.subplots()
 
 p1, = plt.plot(p_t, sym1, 'b--', label="t=1")
-p3, = plt.plot(p_t, sym3, 'r-', label="t=3")
-p15, = plt.plot(p_t, sym15, 'g--', label="t=18")
+p3, = plt.plot(p_t, sym3, 'r-', label="t=18")
+p15, = plt.plot(p_t, sym15, 'g--', label="t=80")
 
 plt.xlabel(r"$\tau in (\hbar / a_max)$")
 plt.ylabel(r"$\phi(\rho_f, \rho_0)$")
@@ -525,7 +529,7 @@ xlist = widthlist
 #     xlist.append()
 #     w_ += dw
 
-sym_pi = X_factory(pi, a2_sym, 0, False)
+sym_pi = X_factory(pi/2.0, a1_sym, 0, False)
 xlist = taus
 for i in range(len(xlist)):
     # tau = taus[i]
@@ -562,25 +566,23 @@ for i in range(len(xlist)):
     fid_sym = fidSingleTxDirect(rho_f, rho_sym, tau)
     sym3.append(fid_sym)
     if fid_sym > 0.990:
-        print("3@ " + str(x) + ", " + str(fid_sym))
+        print("18@ " + str(x) + ", " + str(fid_sym))
 
     rho_sym, us = ezGenerate_Rho(sym_pi, t_end, times[2], eta_0, rho_0, N, stepsize)
     fid_sym = fidSingleTxDirect(rho_f, rho_sym, tau)
     sym15.append(fid_sym)
     if fid_sym > 0.990:
-        print("18@ " + str(x) + ", " + str(fid_sym))
+        print("80@ " + str(x) + ", " + str(fid_sym))
 
     update_plots(fig, ax, \
         [p1, p3, p15], \
         [p_t, p_t, p_t], \
         [sym1, sym3, sym15] )
 
-base = "data/find_sym_a2_capped/"
-
 np.savetxt(base+"figfindTaus.txt", taus)
 np.savetxt(base+"figfind1.txt", sym1)
-np.savetxt(base+"figfind3.txt", sym3)
-np.savetxt(base+"figfind18.txt", sym15)
+np.savetxt(base+"figfind18.txt", sym3)
+np.savetxt(base+"figfind80.txt", sym15)
 fig.savefig(base+"figfind.png")
 
 print("Done! Press Enter to exit.")
