@@ -73,20 +73,28 @@ hoa = 1.
 # 2.0 for "normal"
 # ~4.9 for "capped", 3tauc < .99; 15tauc ~ .98; (useless)
 # ~7.9 for normed, even worse than capped
-tau = 4.9 * hoa # Electron relaxation time; idk the "real" value :)
-# See paper by S. Pasini for constants
-a1_sym = -2.159224 * (1/tau)
-a2_sym = -5.015588 * (1/tau)
-a1_asym = 5.263022 * (1/tau)
-b1_asym = 17.850535 * (1/tau)
-a2_asym = -16.809353 * (1/tau)
-b2_asym = 15.634390 * (1/tau)
+# tau = 4.9 * hoa # Electron relaxation time; idk the "real" value :)
 # Makes X(t) driving pulse function
 # theta is either pi or pi/2
 # a, b are constants
 # This pulse lasts a single period: 0 -> tau
-def X_factory(theta, a, b, antisym):
-    # norm = -2.0 * a + theta
+def X_factory(theta, constPair, antisym, tau, a=None, b=None):
+    # See paper by S. Pasini for constants
+    a1_sym = -2.159224 * (1/tau)
+    a2_sym = -5.015588 * (1/tau)
+    a1_asym = 5.263022 * (1/tau)
+    b1_asym = 17.850535 * (1/tau)
+    a2_asym = -16.809353 * (1/tau)
+    b2_asym = 15.634390 * (1/tau)
+
+    constfinder = { True: [None, (a1_sym,0), (a2_sym,0)],
+                    False: [None, (a1_asym,b1_asym), (a2_asym,b2_asym)]}
+    a_, b_ = constfinder[antisym][constPair]
+    if a is None:
+        a = a_
+    if b is None:
+        b = b_
+
     def X_sym(t):
         if t < 0:
             return 0
@@ -125,7 +133,8 @@ def X_factory(theta, a, b, antisym):
 
     return simple
 
-base = "data/find_asym_1_simple/"
+base = "data/asympulse/find_asym_1_simple_pi2/"
+print base
 
 def minabs(x, y):
     if abs(x) < abs(y):
@@ -142,6 +151,32 @@ def minmax(f, s, e):
     mi = min(fs)
     return ma, mi
 
+sym_pi = X_factory(pi, a1_sym, 0, False)
+asym_pi = X_factory(pi, a1_asym, b1_asym, True)
+
+pulsef = X_factory(pi/2.0, a1_asym, b1_asym, True)
+
+times = [0.2* hoa, 3.0* hoa, 18.0* hoa]
+###
+# Performance Params
+###
+N = 1420 # number of RTN trajectories
+stepsize = 0.023 # Step-forward matrices step size, dont lower
+
+###
+t_end = 18.42 # end of RTN
+
+cpus = 8
+if not profiling and parallel:
+    print("POOL")
+    pool = Pool(processes=cpus)
+
+tau_start = (3.5 * pi/ 3.0) * hoa
+tau_end = (16 * pi / 3.0) * hoa
+# tau_start = (80 * pi/ 3.0) * hoa
+# tau_end = (82 * pi / 3.0) * hoa
+dtau = 0.42 * hoa
+
 def x2p(width, periods):
     def pulse(t):
         if t < 0:
@@ -151,9 +186,6 @@ def x2p(width, periods):
         # return (((t % width) - (width/2.0)) ** 2)/a_max
         return (((t % width) - (width/2.0)) ** 2)/(2*a_max) - a_max
     return pulse
-
-sym_pi = X_factory(pi, a1_sym, 0, False)
-asym_pi = X_factory(pi, a1_asym, b1_asym, True)
 
 # Systematic Error
 def eta_sys(t):
@@ -434,27 +466,27 @@ rho_f = dm_0
 eta_0 = Delta
 
 # tau_c_0 = 0.2 * hoa
-# tau_c_f = 15. * hoa
-times = [0.2* hoa, 3.0* hoa, 18.0* hoa]
-###
-# Performance Params
-###
-N = 1420 # number of RTN trajectories
-stepsize = 0.023 # Step-forward matrices step size, dont lower
-
-###
-t_end = 18.42 # end of RTN
-
-cpus = 8
-if not profiling and parallel:
-    print("POOL")
-    pool = Pool(processes=cpus)
-
-tau_start = (3.5 * pi/ 3.0) * hoa
-tau_end = (15 * pi / 3.0) * hoa
-# tau_start = (80 * pi/ 3.0) * hoa
-# tau_end = (82 * pi / 3.0) * hoa
-dtau = 0.35 * hoa
+# # tau_c_f = 15. * hoa
+# times = [0.2* hoa, 3.0* hoa, 18.0* hoa]
+# ###
+# # Performance Params
+# ###
+# N = 1420 # number of RTN trajectories
+# stepsize = 0.023 # Step-forward matrices step size, dont lower
+#
+# ###
+# t_end = 18.42 # end of RTN
+#
+# cpus = 8
+# if not profiling and parallel:
+#     print("POOL")
+#     pool = Pool(processes=cpus)
+#
+# tau_start = (3.5 * pi/ 3.0) * hoa
+# tau_end = (15 * pi / 3.0) * hoa
+# # tau_start = (80 * pi/ 3.0) * hoa
+# # tau_end = (82 * pi / 3.0) * hoa
+# dtau = 0.35 * hoa
 t_ = tau_start
 taus = []
 while t_ < tau_end:
@@ -530,7 +562,6 @@ xlist = widthlist
 #     w_ += dw
 
 # pulsef = X_factory(pi, a1_sym, 0, False)
-pulsef = X_factory(pi, a1_sym, b1_asym, True)
 xlist = taus
 for i in range(len(xlist)):
     # tau = taus[i]
@@ -542,37 +573,26 @@ for i in range(len(xlist)):
     x = w
     p_t.append(x)
 
-    # sym_pi is a wrong name :)
-    # sym_pi = x2p(np.pi, x) # vary periods
-    # didn't seem like 2+ periods were different
-    # Actually 1.8+ periods
-    # sym_pi = x2p(x, 2.0) # vary width
-    # sym_pi = x2p(w, p) # vary both
-
-    # sym_pi = X_factory(pi, a_sym / tau, 0, False, tau=tau)
-    # sym_pi = X_factory(pi, a1_asym / tau, b1_asym/tau, True, tau=tau)
-    # sym_pi = X_factory(pi, a2_asym / tau, b2_asym/tau, True, tau=tau)
-    # sym_pi = X_factory(pi, a1_sym / tau, 0, False, tau=tau)
-    # sym_pi = SCORPSEfac(tau)
 
     tau = x
-    rho_sym, us = ezGenerate_Rho(pulsef, t_end, times[0], eta_0, rho_0, N, stepsize)
-    fid_sym = fidSingleTxDirect(rho_f, rho_sym, tau)
-    sym1.append(fid_sym)
 
-    if fid_sym > 0.990:
+    pulsef = X_factory(pi, a1_sym, 0, False)
+
+    rho_pulse0, us0 = ezGenerate_Rho(pulsef, t_end, times[0], eta_0, rho_0, N, stepsize)
+    rho_pulse1, us1 = ezGenerate_Rho(pulsef, t_end, times[1], eta_0, rho_0, N, stepsize)
+    rho_pulse2, us2 = ezGenerate_Rho(pulsef, t_end, times[2], eta_0, rho_0, N, stepsize)
+    fid_1 = fidSingleTxDirect(rho_f, rho_pulse0, tau)
+    fid_2 = fidSingleTxDirect(rho_f, rho_pulse1, tau)
+    fid_3 = fidSingleTxDirect(rho_f, rho_pulse2, tau)
+    sym1.append(fid_0)
+    sym3.append(fid_1)
+    sym15.append(fid_2)
+
+    if fid_0 > 0.990:
         print("1@ " + str(x) + ", " + str(fid_sym))
-
-    rho_sym, us = ezGenerate_Rho(sym_pi, t_end, times[1], eta_0, rho_0, N, stepsize)
-    fid_sym = fidSingleTxDirect(rho_f, rho_sym, tau)
-    sym3.append(fid_sym)
-    if fid_sym > 0.985:
+    if fid_1 > 0.985:
         print("3@ " + str(x) + ", " + str(fid_sym))
-
-    rho_sym, us = ezGenerate_Rho(sym_pi, t_end, times[2], eta_0, rho_0, N, stepsize)
-    fid_sym = fidSingleTxDirect(rho_f, rho_sym, tau)
-    sym15.append(fid_sym)
-    if fid_sym > 0.980:
+    if fid_2 > 0.980:
         print("18@ " + str(x) + ", " + str(fid_sym))
 
     update_plots(fig, ax, \
