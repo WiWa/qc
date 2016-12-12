@@ -131,11 +131,11 @@ def X_factory(theta, constPair, antisym, tau, a=None, b=None):
     def capped(t):
         return minabs(underlying(t), a_max)
 
-    return simple
+    return full
 
 # XXX here
 
-base = "data/sympulse/find_sym_2_simple/"
+base = "data/asympulse/2_full/"
 
 tau_start = (3.5 * pi/ 3.0) * hoa
 tau_end = (16 * pi / 3.0) * hoa
@@ -577,10 +577,10 @@ for i in range(len(xlist)):
     tau = x
     theta = pi
     constpair = 2
-    antisym = False
+    antisym = True
 
     pulsef = X_factory(theta, constpair, antisym, tau)
-    # XXX HERE XXX
+    # XXX XXX
 
     rho_pulse0, us0 = ezGenerate_Rho(pulsef, t_end, times[0], eta_0, rho_0, N, stepsize)
     rho_pulse1, us1 = ezGenerate_Rho(pulsef, t_end, times[1], eta_0, rho_0, N, stepsize)
