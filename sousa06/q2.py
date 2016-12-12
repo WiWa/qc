@@ -132,6 +132,7 @@ b2_asym = 15.634390 * (1/tau)
 # a, b are constants
 # This pulse lasts a single period: 0 -> tau
 def X_factory(theta, a, b, antisym):
+    # norm = -2.0 * a + theta
     def X_sym(t):
         if t < 0:
             return 0
@@ -140,7 +141,9 @@ def X_factory(theta, a, b, antisym):
         _1 = theta / 2
         _2 = (a - _1) * cos((2 * pi  / tau) * t)
         _3 = a * cos((4 * pi  / tau) * t)
-        return minabs((_1 + _2 - _3) * a_max, a_max)
+        # return minabs((_1 + _2 - _3) * a_max, a_max)
+        return (_1 + _2 - _3)
+        # return (_1 + _2 - _3) * a_max / norm # normed
 
     def X_antisym(t):
         if t < 0:
@@ -150,11 +153,18 @@ def X_factory(theta, a, b, antisym):
         _1 = X_sym(t)
         _2 = b * sin((2 * pi  / tau) * t)
         _3 = (b/2) * sin((4 * pi  / tau) * t)
-        return minabs((_1 + _2 - _3) * a_max, a_max)
+        # return minabs((_1 + _2 - _3) * a_max, a_max)
+        return (_1 + _2 - _3)
+        # return (_1 + _2 - _3) * a_max / norm # normed
 
+    underlying = X_sym
     if antisym:
-        return X_antisym
-    return X_sym
+        underlying = X_antisym
+    norm = maximize(underlying, 0, tau)
+    def normmed(t):
+        return underlying(t) / norm
+
+    return normmed
 
 def minabs(x, y):
     if abs(x) < abs(y):
@@ -162,6 +172,12 @@ def minabs(x, y):
     if x < 0:
         return -y
     return y
+
+# maximize f from s to e
+def maximize(f, s, e):
+    ts = np.linspace(s, e, 3000)
+    m = max([abs(f(t)) for t in ts])
+    return m
 
 def x2p(width, periods):
     def pulse(t):
@@ -174,7 +190,7 @@ def x2p(width, periods):
     return pulse
 
 sym_pi = X_factory(pi, a1_sym, 0, False)
-# sym_pi = X_factory(pi, a1_asym, b1_asym, True)
+asym_pi = X_factory(pi, a1_asym, b1_asym, True)
 
 # Systematic Error
 def eta_sys(t):
@@ -707,11 +723,35 @@ end of RTN:
 Starting...
 """.format(**locals()))
 
-fids_pi = []
-fids_C = []
-fids_SC = []
-fids_G = []
-fids_sym = []
+do_pi = True
+do_c = False
+do_sc = True
+# do_g = doGrape
+do_g = False
+do_sym = True
+do_asym = False
+
+fidelities = []
+if do_pi:
+    fids_pi = []
+    fidelities.append(fids_pi)
+if do_c:
+    fids_C = []
+    fidelities.append(fids_C)
+if do_sc:
+    fids_SC = []
+    fidelities.append(fids_SC)
+if do_g:
+    fids_G = []
+    fidelities.append(fids_G)
+if do_sym:
+    fids_sym = []
+    fidelities.append(fids_sym)
+if do_asym:
+    fids_asym = []
+    fidelities.append(fids_asym)
+
+
 # Pulse Info: (amp_function, time_done)
 # TODO: clean up different cases :)
 # def mkInfo(ampf, time):
@@ -734,18 +774,41 @@ def ezmap(f, xs):
 
 p_t = []
 
+plt.figure()
+chi_time = np.linspace(0, tau, 500)
+if do_sym:
+    plt.plot(chi_time, [sym_pi(t) for t in chi_time], "c-", label="Symmetric Pulse shape")
+if do_asym:
+    plt.plot(chi_time, [asym_pi(t) for t in chi_time], "m-", label="Antisymmetric Pulse shape")
+
 plt.ion()
 fig, ax = plt.subplots()
 
-sym_label = "Sym pulse, tau="+str(tau)
-p_pi, = plt.plot(p_t, fids_pi, 'b--', label="pi pulse")
-p_c, = plt.plot(p_t, fids_C, 'r-', label="CORPSE pulse")
-p_sc, = plt.plot(p_t, fids_SC, 'r--', label="SCORPSE pulse")
-p_g, = plt.plot(p_t, fids_G, 'g-', label="GRAPE pulse")
-p_sym, = plt.plot(p_t, fids_sym, 'g--', label=r"$f(x) = x^2$; width $\pi$, 2 periods, range $-a_{max}$ to $a_{max}$")
 
-plt.xlabel("tau_c / (hbar / a_max)")
-plt.ylabel("fidelity \\phi(rho_f, rho_0)")
+sym_label = "Sym pulse, tau="+str(tau)
+pulse_plots =[]
+if do_pi:
+    p_pi, = plt.plot(p_t, fids_pi, 'b--', label="pi pulse")
+    pulse_plots.append(p_pi)
+if do_c:
+    p_c, = plt.plot(p_t, fids_C, 'r-', label="CORPSE pulse")
+    pulse_plots.append(p_c)
+if do_sc:
+    p_sc, = plt.plot(p_t, fids_SC, 'r--', label="SCORPSE pulse")
+    pulse_plots.append(p_sc)
+if do_g:
+    p_g, = plt.plot(p_t, fids_G, 'g-', label="GRAPE pulse")
+    pulse_plots.append(p_g)
+    #r"$f(x) = x^2$; width $\pi$, 2 periods, range $-a_{max}$ to $a_{max}$"
+if do_sym:
+    p_sym, = plt.plot(p_t, fids_sym, 'c--', label="Symmetric pulse")
+    pulse_plots.append(p_sym)
+if do_asym:
+    p_asym, = plt.plot(p_t, fids_asym, 'm--', label="Antisymmetric pulse")
+    pulse_plots.append(p_asym)
+
+plt.xlabel(r"$\tau_c / (\hbar / a_{max})$")
+plt.ylabel(r"$fidelity \phi(\rho_f, \rho_0)$")
 plt.legend(loc='best')
 plt.show()
 plt.pause(0.0001)
@@ -782,50 +845,48 @@ for i in range(len(tau_cs)):
     p_t.append(tau_c)
     # js = generateJumpTimes(t_end, tau_c)
 
-    doC = False
-    doSC = True
-    doSym = True
+    # doC = False
+    # doSC = True
+    # doSym = True
 
-    rho_pi, Us = ezGenerate_Rho(a_pi, t_end, tau_c, eta_0, rho_0, N, stepsize)
-    fid_pi = fidSingleTxDirect(rho_f, rho_pi, T_pi)
-    fids_pi.append(fid_pi)
+    if do_pi:
+        rho_pi, Us = ezGenerate_Rho(a_pi, t_end, tau_c, eta_0, rho_0, N, stepsize)
+        fid_pi = fidSingleTxDirect(rho_f, rho_pi, T_pi)
+        fids_pi.append(fid_pi)
 
-    if doC:
+    if do_c:
         rho_C, Us = ezGenerate_Rho(a_C, t_end, tau_c, eta_0, rho_0, N, stepsize)
         fid_C = fidSingleTxDirect(rho_f, rho_C, T_C)
         fids_C.append(fid_C)
-    else:
-        fids_C.append(0.98)
 
-    if doSC:
+    if do_sc:
         rho_SC, us = ezGenerate_Rho(a_SC, t_end, tau_c, eta_0, rho_0, N, stepsize)
         fid_SC = fidSingleTxDirect(rho_f, rho_SC, T_SC)
         fids_SC.append(fid_SC)
-    else:
-        fids_SC.append(0.99)
-
-    # rho_sym, us = ezGenerate_Rho(sym_pi, t_end, tau_c, eta_0, rho_0, N, stepsize)
-    # fid_sym = fidSingleTxDirect(rho_f, rho_sym, tau)
-    # fids_sym.append(fid_sym)
-    mypulse = x2p(np.pi, 2.0)
-    if doSym:
-        rho_sym, us = ezGenerate_Rho(mypulse, t_end, tau_c, eta_0, rho_0, N, stepsize)
-        fid_sym = fidSingleTxDirect(rho_f, rho_sym, T_SC)
-        fids_sym.append(fid_sym)
-    else:
-        fids_sym.append(0.982)
 
     if doGrape:
         rho_G, Us = ezGenerate_Rho(grape_pulse, t_end, tau_c, eta_0, rho_0, N, stepsize)
         fid_G = fidSingleTxDirect(rho_f, rho_G, T_G)
-    else:
-        fid_G = 1
-    fids_G.append(fid_G)
+        fids_G.append(fid_G)
+
+    # rho_sym, us = ezGenerate_Rho(sym_pi, t_end, tau_c, eta_0, rho_0, N, stepsize)
+    # fid_sym = fidSingleTxDirect(rho_f, rho_sym, tau)
+    # fids_sym.append(fid_sym)
+    # mypulse = x2p(np.pi, 2.0)
+    if do_sym:
+        rho_sym, us = ezGenerate_Rho(sym_pi, t_end, tau_c, eta_0, rho_0, N, stepsize)
+        fid_sym = fidSingleTxDirect(rho_f, rho_sym, tau)
+        fids_sym.append(fid_sym)
+
+    if do_asym:
+        rho_asym, us = ezGenerate_Rho(asym_pi, t_end, tau_c, eta_0, rho_0, N, stepsize)
+        fid_asym = fidSingleTxDirect(rho_f, rho_asym, tau)
+        fids_asym.append(fid_asym)
 
     update_plots(fig, ax, \
-        [p_pi, p_c, p_sc, p_g, p_sym], \
-        [p_t, p_t, p_t, p_t, p_t], \
-        [fids_pi, fids_C, fids_SC, fids_G, fids_sym] )
+        pulse_plots, \
+        [p_t for i in range(len(pulse_plots))], \
+        fidelities )
 
     miniend = time.time()
     prev_time = miniend - ministart
@@ -833,11 +894,18 @@ print("time taken: " + str(time.time() - start))
 
 # fig = plt.figure()
 
-np.savetxt("data/fids_pi.txt", fids_pi)
-np.savetxt("data/fids_C.txt", fids_C)
-np.savetxt("data/fids_SC.txt", fids_SC)
-# np.savetxt("data/fids_G.txt", fids_G)
-np.savetxt("data/fids_sym.txt", fids_sym)
+if do_pi:
+    np.savetxt("data/fids_pi.txt", fids_pi)
+if do_c:
+    np.savetxt("data/fids_C.txt", fids_C)
+if do_sc:
+    np.savetxt("data/fids_SC.txt", fids_SC)
+if do_g:
+    np.savetxt("data/fids_G.txt", fids_G)
+if do_sym:
+    np.savetxt("data/fids_sym.txt", fids_sym)
+if do_asym:
+    np.savetxt("data/fids_asym.txt", fids_asym)
 
 fig.savefig("data/fig.png")
 #
