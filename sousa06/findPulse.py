@@ -154,22 +154,19 @@ def X_factory(theta, constPair, antisym, tau, normproc="simple", a=None, b=None)
     return donorm(underlying, 0, tau, normproc=normproc)
 
 # XXX here
-
 # naming: data/[pulse]/params
 # p2: period=2, x-w: vary width, full: normproc="full"
 # base = "data/sawtooth/p2_x-w_full/"
-wave = "rectifier"
-ptitle = "p3_x-w_norm_peaklook"
+wave = "x2"
+ptitle = "p2-5_x-w_norm"
 base = "data/"+wave+"/"+ptitle+"/"
-# base = "data/throw"
-# periodlist = list(np.arange(0.5, 5.1, 0.1)) # period
-# width ~ pi is nice
-widthlist = list(np.arange(0.3*np.pi, 3.*pi, 0.070*pi)) # width
+_periods=2.5
+
+widthlist = list(np.arange(0.4*np.pi, 1.8*pi, 0.045*pi)) # width
 # widthlist = list(np.arange(3.5*np.pi, 5.01*pi, 0.1*pi)) # width
 # width_period_list = list([(w,p) for p in periodlist for w in widthlist])
 
 xlist = widthlist
-_periods=3.
 
 print base
 if not os.path.exists(base):
@@ -618,7 +615,8 @@ def SCORPSEfac(partition):
 start = time.time()
 prev_time = -1
 # xlist = [1,2,3,4] # periods
-pulsefs = [rectifier(x, periods=_periods) for x in xlist]
+# XXX here
+pulsefs = [x2p(x, periods=_periods) for x in xlist]
 
 start = time.time()
 fullstart = start
