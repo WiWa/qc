@@ -73,7 +73,7 @@ def donorm(underlying,s,e, normproc="simple"):
 
     ma, mi = minmax(underlying, s,e)
     maxdiff = abs(ma - mi)
-    print maxdiff
+    # print maxdiff
     def simple(t):
         return underlying(t) / max(abs(ma), abs(mi))
     def full(t):
@@ -156,8 +156,8 @@ base = "data/asym/2_full/"
 # base = "data/throw"
 
 tau_start = (3.7 * pi/ 3.0) * hoa
-tau_end = (11 * pi / 3.0) * hoa
-dtau = 0.37 * hoa
+tau_end = (14 * pi / 3.0) * hoa
+dtau = 0.45 * hoa
 
 print base
 if not os.path.exists(base):
