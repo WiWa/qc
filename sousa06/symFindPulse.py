@@ -144,7 +144,7 @@ def X_factory(theta, constPair, antisym, tau, normproc="simple", a=None, b=None)
     if antisym:
         underlying = X_antisym
 
-    normproc = "simple"
+    normproc = "full"
     return donorm(underlying, 0, tau, normproc=normproc)
 
 # XXX here
@@ -152,12 +152,14 @@ def X_factory(theta, constPair, antisym, tau, normproc="simple", a=None, b=None)
 # naming: data/[pulse]/params
 # p2: period=2, x-w: vary width, full: normproc="full"
 # base = "data/sawtooth/p2_x-w_full/"
-base = "data/square/pi_pulse_check/"
+base = "data/asym/1_full_detail/"
 # base = "data/throw"
 
-tau_start = (3.7 * pi/ 3.0) * hoa
-tau_end = (14 * pi / 3.0) * hoa
-dtau = 0.50 * hoa
+# tau_start = (3.7 * pi/ 3.0) * hoa
+# tau_end = (14 * pi / 3.0) * hoa
+tau_start = 9.2 * hoa
+tau_end = 16.2 * hoa
+dtau = 0.25 * hoa
 
 print base
 if not os.path.exists(base):
@@ -193,48 +195,6 @@ cpus = 8
 if not profiling and parallel:
     print("POOL")
     pool = Pool(processes=cpus)
-
-# XXX fourier
-def sawtooth(width, periods=2):
-    # normalize to -1 -> 1 for now
-    def pulse(t):
-        if t < 0:
-            return 0
-        if t > width * periods:
-            return 0
-        return 2*(t % width)/width - 1
-    return pulse
-def rectifier(width, periods=2):
-    # 0 to 1, width can be in units of pi
-    def pulse(t):
-        if t < 0:
-            return 0
-        if t > width * periods:
-            return 0
-        return sin((t % width)*pi/width)
-    return pulse
-def x2p(width, periods=2):
-    # >= 0
-    def pulse(t):
-        if t < 0:
-            return 0
-        if t > width * periods:
-            return 0
-        return ((t % width) - (width/2.0)) ** 2
-        # return (((t % width) - (width/2.0)) ** 2)/(2*a_max) - a_max
-    return pulse
-def square(width, periods=2):
-    # -1 to 1
-    def pulse(t):
-        if t < 0:
-            return 0
-        if t > width * periods:
-            return 0
-        if t % width < 0.5*width:
-            return 1
-        return -1
-    return pulse
-
 
 # Systematic Error
 def eta_sys(t):
@@ -514,28 +474,6 @@ rho_0 = dm_1
 rho_f = dm_0
 eta_0 = Delta
 
-# tau_c_0 = 0.2 * hoa
-# # tau_c_f = 15. * hoa
-# times = [0.2* hoa, 3.0* hoa, 18.0* hoa]
-# ###
-# # Performance Params
-# ###
-# N = 1420 # number of RTN trajectories
-# stepsize = 0.023 # Step-forward matrices step size, dont lower
-#
-# ###
-# t_end = 18.42 # end of RTN
-#
-# cpus = 8
-# if not profiling and parallel:
-#     print("POOL")
-#     pool = Pool(processes=cpus)
-#
-# tau_start = (3.5 * pi/ 3.0) * hoa
-# tau_end = (15 * pi / 3.0) * hoa
-# # tau_start = (80 * pi/ 3.0) * hoa
-# # tau_end = (82 * pi / 3.0) * hoa
-# dtau = 0.35 * hoa
 t_ = tau_start
 taus = []
 while t_ < tau_end:
@@ -567,9 +505,8 @@ def ezmap(f, xs):
 p_t = []
 
 # XXX SHAPE
-pulseshape = square(2.,periods=0.48)
-# pulseshape = X_factory(pi, 2, True, 1, normproc="full")
-tis = np.linspace(0, 5, 1000)
+pulseshape = X_factory(pi, 1, True, 1, normproc="full")
+tis = np.linspace(0, 2, 1000)
 pulseshape_data = [pulseshape(ti) for ti in tis]
 pshape = plt.figure()
 plt.plot(tis, pulseshape_data, 'b-')
@@ -604,22 +541,8 @@ def SCORPSEfac(partition):
 
 start = time.time()
 prev_time = -1
-# xlist = [1,2,3,4] # periods
-periodlist = list(np.arange(0.5, 5.1, 0.1)) # period
-# width ~ pi is nice
-widthlist = list(np.arange(1.5*np.pi, 3.01*pi, 0.016*pi)) # width
-# widthlist = list(np.arange(3.5*np.pi, 5.01*pi, 0.1*pi)) # width
-width_period_list = list([(w,p) for p in periodlist for w in widthlist])
-# w_start = 0.5*np.pi
-# w_end = 2.0*np.pi
-# w_ = w_start
-# while w_ <= w_end:
-#     xlist.append()
-#     w_ += dw
+xlist = taus
 
-# pulsef = X_factory(pi, a1_sym, 0, False)
-# xlist = taus
-xlist = widthlist
 start = time.time()
 fullstart = start
 for i in range(len(xlist)):
@@ -629,23 +552,19 @@ for i in range(len(xlist)):
     end = time.time()
     print end - start
     start = end
-    # x = a_sym
-    w = xlist[i]
-    # x = w + (4. * np.pi * p)
+
     x = xlist[i]
     p_t.append(x)
 
 
     # XXX HERE XXX
-    # tau = x
-    # theta = pi
-    # constpair = 1
-    # antisym = True
+    tau = x
+    theta = pi
+    constpair = 1
+    antisym = True
 
-    # pulsef = X_factory(theta, constpair, antisym, tau)
-    periods = 0.48
-    pulse_end = x * periods
-    pulsef = square(x, periods)
+    pulsef = X_factory(theta, constpair, antisym, tau)
+    pulse_end = tau
     # XXX XXX
 
     rho_pulse0, us0 = ezGenerate_Rho(pulsef, t_end, times[0], eta_0, rho_0, N, stepsize)
