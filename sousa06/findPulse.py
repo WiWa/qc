@@ -159,7 +159,7 @@ def X_factory(theta, constPair, antisym, tau, normproc="simple", a=None, b=None)
 # p2: period=2, x-w: vary width, full: normproc="full"
 # base = "data/sawtooth/p2_x-w_full/"
 wave = "rectifier"
-ptitle = "p2_x-w_norm_peaklook"
+ptitle = "p3_x-w_norm_peaklook"
 base = "data/"+wave+"/"+ptitle+"/"
 # base = "data/throw"
 # periodlist = list(np.arange(0.5, 5.1, 0.1)) # period
@@ -169,7 +169,7 @@ widthlist = list(np.arange(0.3*np.pi, 3.*pi, 0.070*pi)) # width
 # width_period_list = list([(w,p) for p in periodlist for w in widthlist])
 
 xlist = widthlist
-_periods=2.
+_periods=3.
 
 print base
 if not os.path.exists(base):
@@ -589,6 +589,7 @@ plt.plot(tis, pulseshape_data, 'b-')
 
 plt.ion()
 fig, ax = plt.subplots()
+fig.suptitle(wave + ":" + ptitle)
 
 p1, = plt.plot(p_t, sym1, 'b--', label="t=1")
 p3, = plt.plot(p_t, sym3, 'r-', label="t=3")

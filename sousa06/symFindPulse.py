@@ -526,6 +526,7 @@ plt.plot(tis, pulseshape_data, 'b-')
 
 plt.ion()
 fig, ax = plt.subplots()
+fig.suptitle(wave + ":" + ptitle)
 
 p1, = plt.plot(p_t, sym1, 'b--', label="t=1")
 p3, = plt.plot(p_t, sym3, 'r-', label="t=3")
