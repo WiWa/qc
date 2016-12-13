@@ -144,7 +144,7 @@ def X_factory(theta, constPair, antisym, tau, normproc="simple", a=None, b=None)
     if antisym:
         underlying = X_antisym
 
-    normproc = "full"
+    normproc = "simple"
     return donorm(underlying, 0, tau, normproc=normproc)
 
 # XXX here
@@ -152,7 +152,7 @@ def X_factory(theta, constPair, antisym, tau, normproc="simple", a=None, b=None)
 # naming: data/[pulse]/params
 # p2: period=2, x-w: vary width, full: normproc="full"
 # base = "data/sawtooth/p2_x-w_full/"
-base = "data/asym/2_full/"
+base = "data/square/p2_x-w_none/"
 # base = "data/throw"
 
 tau_start = (3.7 * pi/ 3.0) * hoa
@@ -567,9 +567,9 @@ def ezmap(f, xs):
 p_t = []
 
 # XXX SHAPE
-# pulseshape = x2p(2.,periods=2.2)
-pulseshape = X_factory(pi, 2, True, 1, normproc="full")
-tis = np.linspace(0, 2, 1000)
+pulseshape = square(2.)
+# pulseshape = X_factory(pi, 2, True, 1, normproc="full")
+tis = np.linspace(0, 5, 1000)
 pulseshape_data = [pulseshape(ti) for ti in tis]
 pshape = plt.figure()
 plt.plot(tis, pulseshape_data, 'b-')
@@ -607,7 +607,7 @@ prev_time = -1
 # xlist = [1,2,3,4] # periods
 periodlist = list(np.arange(0.5, 5.1, 0.1)) # period
 # width ~ pi is nice
-widthlist = list(np.arange(0.5*np.pi, 2.01*pi, 0.01*pi)) # width
+widthlist = list(np.arange(0.5*np.pi, 2.01*pi, 0.015*pi)) # width
 # widthlist = list(np.arange(3.5*np.pi, 5.01*pi, 0.1*pi)) # width
 width_period_list = list([(w,p) for p in periodlist for w in widthlist])
 # xlist = widthlist
@@ -620,8 +620,8 @@ xlist = widthlist
 #     w_ += dw
 
 # pulsef = X_factory(pi, a1_sym, 0, False)
-xlist = taus
-# xlist = widthlist
+# xlist = taus
+xlist = widthlist
 start = time.time()
 fullstart = start
 for i in range(len(xlist)):
@@ -634,7 +634,7 @@ for i in range(len(xlist)):
     # x = a_sym
     w = xlist[i]
     # x = w + (4. * np.pi * p)
-    x = w
+    x = xlist[i]
     p_t.append(x)
 
 
@@ -644,8 +644,8 @@ for i in range(len(xlist)):
     constpair = 2
     antisym = True
 
-    pulsef = X_factory(theta, constpair, antisym, tau)
-    # pulsef = sawtooth(x)
+    # pulsef = X_factory(theta, constpair, antisym, tau)
+    pulsef = square(x)
     # XXX XXX
 
     rho_pulse0, us0 = ezGenerate_Rho(pulsef, t_end, times[0], eta_0, rho_0, N, stepsize)
