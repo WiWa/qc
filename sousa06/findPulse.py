@@ -73,12 +73,15 @@ def donorm(underlying,s,e, normproc="simple"):
 
     ma, mi = minmax(underlying, s,e)
     maxdiff = abs(ma - mi)
+    print maxdiff
     def simple(t):
         return underlying(t) / max(abs(ma), abs(mi))
     def full(t):
-        return (2*underlying(t) / (maxdiff)) - a_max # the 1 comes from amax
+        return (2*underlying(t) / (maxdiff)) - a_max - (2*mi/maxdiff)
     def capped(t):
         return minabs(underlying(t), a_max)
+    if normproc == "none":
+        return underlying
     if normproc == "simple":
         return simple
     if normproc == "full":
@@ -96,7 +99,7 @@ def donorm(underlying,s,e, normproc="simple"):
 # theta is either pi or pi/2
 # a, b are constants
 # This pulse lasts a single period: 0 -> tau
-def X_factory(theta, constPair, antisym, tau, a=None, b=None):
+def X_factory(theta, constPair, antisym, tau, normproc="simple", a=None, b=None):
     # See paper by S. Pasini for constants
     a1_sym = -2.159224 * (1/tau)
     a2_sym = -5.015588 * (1/tau)
@@ -140,8 +143,8 @@ def X_factory(theta, constPair, antisym, tau, a=None, b=None):
     underlying = X_sym
     if antisym:
         underlying = X_antisym
-
-    return donorm(underlying, 0, tau, normproc="simple")
+    normproc = "full"
+    return donorm(underlying, 0, tau, normproc=normproc)
 
 # XXX here
 
@@ -149,6 +152,7 @@ def X_factory(theta, constPair, antisym, tau, a=None, b=None):
 # p2: period=2, x-w: vary width, full: normproc="full"
 # base = "data/sawtooth/p2_x-w_full/"
 base = "data/sympulse/1_simple_pi2"
+base = "data/throw"
 
 tau_start = (4 * pi/ 3.0) * hoa
 tau_end = (11 * pi / 3.0) * hoa
@@ -562,12 +566,13 @@ def ezmap(f, xs):
 p_t = []
 
 # XXX SHAPE
-# pulseshape = x2p(2.,periods=2.2)
-# tis = np.linspace(0, 7, 1000)
-# pulseshape_data = [pulseshape(ti) for ti in tis]
-# plt.figure()
-# plt.plot(tis, pulseshape_data, 'b-', label="sawtooth")
-# plt.show()
+pulseshape = x2p(2.,periods=2.2)
+pulseshape = X_factory(pi, 1, True, 1, normproc="full")
+tis = np.linspace(0, 3, 1000)
+pulseshape_data = [pulseshape(ti) for ti in tis]
+plt.figure()
+plt.plot(tis, pulseshape_data, 'b-', label="sawtooth")
+plt.show()
 
 plt.ion()
 fig, ax = plt.subplots()

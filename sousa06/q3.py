@@ -147,7 +147,7 @@ def donorm(underlying,s,e, normproc="simple"):
     def simple(t):
         return underlying(t) / max(abs(ma), abs(mi))
     def full(t):
-        return (2*underlying(t) / (maxdiff)) - a_max # the 1 comes from amax
+        return (2*underlying(t) / (maxdiff)) - a_max - (2*mi/maxdiff)
     def capped(t):
         return minabs(underlying(t), a_max)
     if normproc == "simple":
