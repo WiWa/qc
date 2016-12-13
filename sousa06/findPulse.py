@@ -69,6 +69,11 @@ dm_1 = np.array([ [0, 0], cb_1 ], np.complex128).T
 # hoa = (hbar / a_max)
 hoa = 1.
 
+def adapter(f, y):
+    def g(x):
+        return f(x,y)
+    return g
+
 def donorm(underlying,s,e, normproc="simple"):
 
     ma, mi = minmax(underlying, s,e)
@@ -157,12 +162,12 @@ def X_factory(theta, constPair, antisym, tau, normproc="simple", a=None, b=None)
 # naming: data/[pulse]/params
 # p2: period=2, x-w: vary width, full: normproc="full"
 # base = "data/sawtooth/p2_x-w_full/"
-wave = "x2"
-ptitle = "p2-5_x-w_norm"
+wave = "rectifier"
+ptitle = "p2_x-w_full"
 base = "data/"+wave+"/"+ptitle+"/"
-_periods=2.5
+_periods=2.
 
-widthlist = list(np.arange(0.4*np.pi, 1.8*pi, 0.045*pi)) # width
+widthlist = list(np.arange(0.7*np.pi, 1.8*pi, 0.05*pi)) # width
 # widthlist = list(np.arange(3.5*np.pi, 5.01*pi, 0.1*pi)) # width
 # width_period_list = list([(w,p) for p in periodlist for w in widthlist])
 
@@ -576,7 +581,7 @@ def ezmap(f, xs):
 p_t = []
 
 # XXX SHAPE
-pulseshape = rectifier(2.,periods=_periods)
+pulseshape = donorm(rectifier(2.,periods=_periods), 0, 2*_periods, normproc="full")
 # pulseshape = X_factory(pi, 2, True, 1, normproc="full")
 tis = np.linspace(0, 6, 1000)
 pulseshape_data = [pulseshape(ti) for ti in tis]
@@ -616,7 +621,8 @@ start = time.time()
 prev_time = -1
 # xlist = [1,2,3,4] # periods
 # XXX here
-pulsefs = [x2p(x, periods=_periods) for x in xlist]
+pulsefs = [donorm(rectifier(x, periods=_periods), 0, x*_periods, normproc="full")
+                                                            for x in xlist]
 
 start = time.time()
 fullstart = start
