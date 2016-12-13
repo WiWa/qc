@@ -152,14 +152,14 @@ def X_factory(theta, constPair, antisym, tau, normproc="simple", a=None, b=None)
 # naming: data/[pulse]/params
 # p2: period=2, x-w: vary width, full: normproc="full"
 # base = "data/sawtooth/p2_x-w_full/"
-base = "data/asym/1_full_detail/"
+base = "data/sym/1_full_redo/"
 # base = "data/throw"
 
-# tau_start = (3.7 * pi/ 3.0) * hoa
-# tau_end = (14 * pi / 3.0) * hoa
-tau_start = 9.2 * hoa
-tau_end = 16.2 * hoa
-dtau = 0.25 * hoa
+tau_start = (3.7 * pi/ 3.0) * hoa
+tau_end = (16.5 * pi / 3.0) * hoa
+# tau_start = 9.2 * hoa
+# tau_end = 16.2 * hoa
+dtau = 0.42 * hoa
 
 print base
 if not os.path.exists(base):
@@ -505,7 +505,7 @@ def ezmap(f, xs):
 p_t = []
 
 # XXX SHAPE
-pulseshape = X_factory(pi, 1, True, 1, normproc="full")
+pulseshape = X_factory(pi, 1, False, 1, normproc="full")
 tis = np.linspace(0, 2, 1000)
 pulseshape_data = [pulseshape(ti) for ti in tis]
 pshape = plt.figure()
@@ -561,7 +561,7 @@ for i in range(len(xlist)):
     tau = x
     theta = pi
     constpair = 1
-    antisym = True
+    antisym = False
 
     pulsef = X_factory(theta, constpair, antisym, tau)
     pulse_end = tau

@@ -152,7 +152,7 @@ def X_factory(theta, constPair, antisym, tau, normproc="simple", a=None, b=None)
 # naming: data/[pulse]/params
 # p2: period=2, x-w: vary width, full: normproc="full"
 # base = "data/sawtooth/p2_x-w_full/"
-base = "data/square/pi_pulse_check/"
+base = "data/rectifier/p2_x-w_full/"
 # base = "data/throw"
 
 tau_start = (3.7 * pi/ 3.0) * hoa
@@ -607,7 +607,7 @@ prev_time = -1
 # xlist = [1,2,3,4] # periods
 periodlist = list(np.arange(0.5, 5.1, 0.1)) # period
 # width ~ pi is nice
-widthlist = list(np.arange(1.5*np.pi, 3.01*pi, 0.016*pi)) # width
+widthlist = list(np.arange(0.9*np.pi, 2.21*pi, 0.021*pi)) # width
 # widthlist = list(np.arange(3.5*np.pi, 5.01*pi, 0.1*pi)) # width
 width_period_list = list([(w,p) for p in periodlist for w in widthlist])
 # w_start = 0.5*np.pi
