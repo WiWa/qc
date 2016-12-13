@@ -55,8 +55,8 @@ stepsize = 0.023 # Step-forward matrices step size, dont lower or raise
 t_end = tau_c_f + 0.42 * hoa # end of RTN
 
 profiling = False
-cpus = 8
-parallel = (not profiling) and True
+cpus = 2
+parallel = (not profiling) and True and False
 
 ###############
 
@@ -150,6 +150,8 @@ def donorm(underlying,s,e, normproc="simple"):
         return (2*underlying(t) / (maxdiff)) - a_max - (2*mi/maxdiff)
     def capped(t):
         return minabs(underlying(t), a_max)
+    if normproc == "none":
+        return underlying
     if normproc == "simple":
         return simple
     if normproc == "full":
@@ -177,8 +179,8 @@ def X_factory(theta, constPair, antisym, tau, normproc="simple",
     a2_asym = -16.809353 * (1/tau)
     b2_asym = 15.634390 * (1/tau)
 
-    constfinder = { True: [None, (a1_sym,0), (a2_sym,0)],
-                    False: [None, (a1_asym,b1_asym), (a2_asym,b2_asym)]}
+    constfinder = { False: [None, (a1_sym,0), (a2_sym,0)],
+                    True: [None, (a1_asym,b1_asym), (a2_asym,b2_asym)]}
     a_, b_ = constfinder[antisym][constPair]
     if a is None:
         a = a_
@@ -215,9 +217,6 @@ def X_factory(theta, constPair, antisym, tau, normproc="simple",
 
     return donorm(underlying, 0, tau, normproc=normproc)
 
-mytau = 9.12
-sym_pi = X_factory(pi, 1, False, mytau,normproc="full")
-
 def minabs(x, y):
     if abs(x) < abs(y):
         return x
@@ -232,6 +231,9 @@ def minmax(f, s, e):
     ma = max(fs)
     mi = min(fs)
     return ma, mi
+
+mytau = 9.12
+sym_pi = X_factory(pi, 1, False, mytau,normproc="full")
 
 def x2p(width, periods):
     def pulse(t):
@@ -551,7 +553,7 @@ if do_asym:
 p_t = []
 
 plt.figure()
-chi_time = np.linspace(0, tau, 500)
+chi_time = np.linspace(0, mytau, 500)
 if do_sym:
     plt.plot(chi_time, [sym_pi(t) for t in chi_time], "c-", label="Symmetric Pulse shape")
 if do_asym:

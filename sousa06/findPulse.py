@@ -108,8 +108,8 @@ def X_factory(theta, constPair, antisym, tau, normproc="simple", a=None, b=None)
     a2_asym = -16.809353 * (1/tau)
     b2_asym = 15.634390 * (1/tau)
 
-    constfinder = { True: [None, (a1_sym,0), (a2_sym,0)],
-                    False: [None, (a1_asym,b1_asym), (a2_asym,b2_asym)]}
+    constfinder = { False: [None, (a1_sym,0), (a2_sym,0)],
+                    True: [None, (a1_asym,b1_asym), (a2_asym,b2_asym)]}
     a_, b_ = constfinder[antisym][constPair]
     if a is None:
         a = a_
@@ -142,7 +142,9 @@ def X_factory(theta, constPair, antisym, tau, normproc="simple", a=None, b=None)
 
     underlying = X_sym
     if antisym:
+        print "asym"
         underlying = X_antisym
+
     normproc = "full"
     return donorm(underlying, 0, tau, normproc=normproc)
 
@@ -151,10 +153,10 @@ def X_factory(theta, constPair, antisym, tau, normproc="simple", a=None, b=None)
 # naming: data/[pulse]/params
 # p2: period=2, x-w: vary width, full: normproc="full"
 # base = "data/sawtooth/p2_x-w_full/"
-base = "data/sympulse/1_simple_pi2"
-base = "data/throw"
+base = "data/sym/1_full/"
+# base = "data/throw"
 
-tau_start = (4 * pi/ 3.0) * hoa
+tau_start = (3.7 * pi/ 3.0) * hoa
 tau_end = (11 * pi / 3.0) * hoa
 dtau = 0.37 * hoa
 
@@ -567,12 +569,12 @@ p_t = []
 
 # XXX SHAPE
 pulseshape = x2p(2.,periods=2.2)
-pulseshape = X_factory(pi, 1, True, 1, normproc="full")
-tis = np.linspace(0, 3, 1000)
+pulseshape = X_factory(pi, 1, False, 1, normproc="full")
+tis = np.linspace(0, 2, 1000)
 pulseshape_data = [pulseshape(ti) for ti in tis]
-plt.figure()
-plt.plot(tis, pulseshape_data, 'b-', label="sawtooth")
-plt.show()
+pshape = plt.figure()
+plt.plot(tis, pulseshape_data, 'b-')
+# plt.show()
 
 plt.ion()
 fig, ax = plt.subplots()
@@ -638,7 +640,7 @@ for i in range(len(xlist)):
 
     # XXX HERE XXX
     tau = x
-    theta = pi/2.0
+    theta = pi
     constpair = 1
     antisym = False
 
@@ -676,6 +678,7 @@ np.savetxt(base+"figfindTaus.txt", taus)
 np.savetxt(base+"figfind1.txt", sym1)
 np.savetxt(base+"figfind3.txt", sym3)
 np.savetxt(base+"figfind12.txt", sym12)
+pshape.savefig(base+"pulseshape.png")
 fig.savefig(base+"figfind.png")
 
 print("Done! Press Enter to exit.")
