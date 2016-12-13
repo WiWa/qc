@@ -141,18 +141,18 @@ def X_factory(theta, constPair, antisym, tau, a=None, b=None):
     if antisym:
         underlying = X_antisym
 
-    return donorm(underlying, 0, tau, normproc="capped")
+    return donorm(underlying, 0, tau, normproc="simple")
 
 # XXX here
 
 # naming: data/[pulse]/params
 # p2: period=2, x-w: vary width, full: normproc="full"
 # base = "data/sawtooth/p2_x-w_full/"
-base = "data/sympulse/1_capped"
+base = "data/sympulse/1_simple_pi2"
 
-tau_start = (3.5 * pi/ 3.0) * hoa
-tau_end = (16 * pi / 3.0) * hoa
-dtau = 0.42 * hoa
+tau_start = (4 * pi/ 3.0) * hoa
+tau_end = (11 * pi / 3.0) * hoa
+dtau = 0.37 * hoa
 
 print base
 if not os.path.exists(base):
@@ -633,7 +633,7 @@ for i in range(len(xlist)):
 
     # XXX HERE XXX
     tau = x
-    theta = pi
+    theta = pi/2.0
     constpair = 1
     antisym = False
 
@@ -662,6 +662,10 @@ for i in range(len(xlist)):
         [p1, p3, p15], \
         [p_t, p_t, p_t], \
         [sym1, sym3, sym12] )
+
+if not os.path.exists(base):
+    print "Creating directory (at end)"
+    os.makedirs(base)
 
 np.savetxt(base+"figfindTaus.txt", taus)
 np.savetxt(base+"figfind1.txt", sym1)

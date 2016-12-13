@@ -34,22 +34,22 @@ th_time = [0.]
 # Mikko Mottonen and Rogerio de Sousa
 ###
 
-# PARAMETERS
+# XXX PARAMETERS
 
 do_pi = True
 do_c = False
-do_sc = False
+do_sc = True
 do_sym = True
 do_asym = False
 
 tau_c_0 = 0.2 * hoa
-tau_c_f = 28. * hoa
+tau_c_f = 30. * hoa
 ###
 # Performance Params
 ###
-dtau_c = 2.32 * hoa
-N = 3000 # number of RTN trajectories
-stepsize = 0.022 # Step-forward matrices step size, dont lower or raise
+dtau_c = 0.82 * hoa
+N = 2700 # number of RTN trajectories
+stepsize = 0.023 # Step-forward matrices step size, dont lower or raise
 
 ###
 t_end = tau_c_f + 0.42 * hoa # end of RTN
@@ -140,24 +140,51 @@ def a_SC2(t):
         return -a_max
     return 0
 
+def donorm(underlying,s,e, normproc="simple"):
+
+    ma, mi = minmax(underlying, s,e)
+    maxdiff = abs(ma - mi)
+    def simple(t):
+        return underlying(t) / max(abs(ma), abs(mi))
+    def full(t):
+        return (2*underlying(t) / (maxdiff)) - a_max # the 1 comes from amax
+    def capped(t):
+        return minabs(underlying(t), a_max)
+    if normproc == "simple":
+        return simple
+    if normproc == "full":
+        return full
+    if normproc == "capped":
+        return capped
+    raise Exception("bad normproc: " + normproc)
+
 ###### Sym/Antisym pulses
 # 2.0 for "normal"
 # ~4.9 for "capped", 3tauc < .99; 15tauc ~ .98; (useless)
 # ~7.9 for normed, even worse than capped
-tau = 4.9 * hoa # Electron relaxation time; idk the "real" value :)
-# See paper by S. Pasini for constants
-a1_sym = -2.159224 * (1/tau)
-a2_sym = -5.015588 * (1/tau)
-a1_asym = 5.263022 * (1/tau)
-b1_asym = 17.850535 * (1/tau)
-a2_asym = -16.809353 * (1/tau)
-b2_asym = 15.634390 * (1/tau)
+# tau = 4.9 * hoa # Electron relaxation time; idk the "real" value :)
 # Makes X(t) driving pulse function
 # theta is either pi or pi/2
 # a, b are constants
 # This pulse lasts a single period: 0 -> tau
-def X_factory(theta, a, b, antisym):
-    # norm = -2.0 * a + theta
+def X_factory(theta, constPair, antisym, tau, normproc="simple",
+                                                a=None, b=None):
+    # See paper by S. Pasini for constants
+    a1_sym = -2.159224 * (1/tau)
+    a2_sym = -5.015588 * (1/tau)
+    a1_asym = 5.263022 * (1/tau)
+    b1_asym = 17.850535 * (1/tau)
+    a2_asym = -16.809353 * (1/tau)
+    b2_asym = 15.634390 * (1/tau)
+
+    constfinder = { True: [None, (a1_sym,0), (a2_sym,0)],
+                    False: [None, (a1_asym,b1_asym), (a2_asym,b2_asym)]}
+    a_, b_ = constfinder[antisym][constPair]
+    if a is None:
+        a = a_
+    if b is None:
+        b = b_
+
     def X_sym(t):
         if t < 0:
             return 0
@@ -185,14 +212,11 @@ def X_factory(theta, a, b, antisym):
     underlying = X_sym
     if antisym:
         underlying = X_antisym
-    ma, mi = minmax(underlying, 0, tau)
-    maxdiff = abs(ma - mi)
-    def simplenorm(t):
-        return underlying(t) / max(abs(ma), abs(mi))
-    def fullnorm(t):
-        return (2*underlying(t) / (maxdiff)) - a_max # the 1 comes from amax
 
-    return fullnorm
+    return donorm(underlying, 0, tau, normproc=normproc)
+
+mytau = 9.12
+sym_pi = X_factory(pi, 1, False, mytau,normproc="full")
 
 def minabs(x, y):
     if abs(x) < abs(y):
@@ -218,9 +242,6 @@ def x2p(width, periods):
         # return (((t % width) - (width/2.0)) ** 2)/a_max
         return (((t % width) - (width/2.0)) ** 2)/(2*a_max) - a_max
     return pulse
-
-sym_pi = X_factory(pi, a1_sym, 0, False)
-asym_pi = X_factory(pi, a1_asym, b1_asym, True)
 
 # Systematic Error
 def eta_sys(t):
@@ -564,6 +585,7 @@ plt.legend(loc='best')
 plt.show()
 plt.pause(0.0001)
 
+### XXX loop
 
 start = time.time()
 prev_time = -1
