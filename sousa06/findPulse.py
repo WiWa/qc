@@ -152,12 +152,8 @@ def X_factory(theta, constPair, antisym, tau, normproc="simple", a=None, b=None)
 # naming: data/[pulse]/params
 # p2: period=2, x-w: vary width, full: normproc="full"
 # base = "data/sawtooth/p2_x-w_full/"
-base = "data/rectifier/p2_x-w_full/"
+base = "data/rectifier/p2_x-w_norm/"
 # base = "data/throw"
-
-tau_start = (3.7 * pi/ 3.0) * hoa
-tau_end = (14 * pi / 3.0) * hoa
-dtau = 0.50 * hoa
 
 print base
 if not os.path.exists(base):
@@ -536,11 +532,11 @@ eta_0 = Delta
 # # tau_start = (80 * pi/ 3.0) * hoa
 # # tau_end = (82 * pi / 3.0) * hoa
 # dtau = 0.35 * hoa
-t_ = tau_start
-taus = []
-while t_ < tau_end:
-    taus.append(t_)
-    t_ += dtau
+# t_ = tau_start
+# taus = []
+# while t_ < tau_end:
+#     taus.append(t_)
+#     t_ += dtau
 a_start = -3.0
 a_end = 3.0
 da = 0.05
@@ -567,7 +563,7 @@ def ezmap(f, xs):
 p_t = []
 
 # XXX SHAPE
-pulseshape = square(2.,periods=0.48)
+pulseshape = rectifier(2.,periods=2.)
 # pulseshape = X_factory(pi, 2, True, 1, normproc="full")
 tis = np.linspace(0, 5, 1000)
 pulseshape_data = [pulseshape(ti) for ti in tis]
@@ -643,9 +639,9 @@ for i in range(len(xlist)):
     # antisym = True
 
     # pulsef = X_factory(theta, constpair, antisym, tau)
-    periods = 0.48
+    periods = 2.
+    pulsef = rectifier(x, periods)
     pulse_end = x * periods
-    pulsef = square(x, periods)
     # XXX XXX
 
     rho_pulse0, us0 = ezGenerate_Rho(pulsef, t_end, times[0], eta_0, rho_0, N, stepsize)
