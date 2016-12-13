@@ -595,7 +595,7 @@ p1, = plt.plot(p_t, sym1, 'b--', label="t=1")
 p3, = plt.plot(p_t, sym3, 'r-', label="t=3")
 p15, = plt.plot(p_t, sym12, 'g--', label="t=12")
 
-plt.xlabel(r"$\tau$ in $\hbar / a_max$")
+plt.xlabel(r"width in $\hbar / a_max$")
 plt.ylabel(r"$\phi(\rho_f, \rho_0)$")
 plt.legend(loc='best')
 plt.show()
