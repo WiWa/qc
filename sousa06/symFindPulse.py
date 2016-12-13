@@ -151,7 +151,6 @@ def X_factory(theta, constPair, antisym, tau, normproc="simple", a=None, b=None)
     if antisym:
         underlying = X_antisym
 
-    normproc = "full"
     return donorm(underlying, 0, tau, normproc=normproc)
 
 # XXX here
@@ -159,8 +158,14 @@ def X_factory(theta, constPair, antisym, tau, normproc="simple", a=None, b=None)
 # naming: data/[pulse]/params
 # p2: period=2, x-w: vary width, full: normproc="full"
 # base = "data/sawtooth/p2_x-w_full/"
-base = "data/sym/1_full_redo/"
 # base = "data/throw"
+wave = "sym"
+ptitle = "p2_x-1_full_redo"
+base = "data/"+wave+"/"+ptitle+"/"
+_antisym = False
+_theta = pi
+_constpair = 1
+_normproc = "full"
 
 tau_start = (3.7 * pi/ 3.0) * hoa
 tau_end = (16.5 * pi / 3.0) * hoa
@@ -192,7 +197,7 @@ times = [0.2* hoa, 3.0* hoa, 12.0* hoa]
 ###
 # Performance Params
 ###
-N = 1024 # number of RTN trajectories
+N = 875 # number of RTN trajectories
 stepsize = 0.024 # Step-forward matrices step size, dont lower
 
 ###
@@ -494,7 +499,7 @@ a_ = a_start
 while a_ <= a_end:
     alist.append(a_)
     a_ += da
-# sym_pis = [X_factory(pi, a1_sym, 0, False, tau=t_) for t_ in taus]
+
 sym1 = []
 sym3 = []
 sym12 = []
@@ -512,7 +517,7 @@ def ezmap(f, xs):
 p_t = []
 
 # XXX SHAPE
-pulseshape = X_factory(pi, 1, False, 1, normproc="full")
+pulseshape = X_factory(_theta, _constpair, _antisym, 1, normproc=_normproc)
 tis = np.linspace(0, 2, 1000)
 pulseshape_data = [pulseshape(ti) for ti in tis]
 pshape = plt.figure()
@@ -550,6 +555,10 @@ start = time.time()
 prev_time = -1
 xlist = taus
 
+# XXX HERE XXX
+pulsefs = [X_factory(_theta, _constpair, _antisym, tau, normproc=_normproc)
+                                                for tau in xlist]
+
 start = time.time()
 fullstart = start
 for i in range(len(xlist)):
@@ -562,16 +571,8 @@ for i in range(len(xlist)):
 
     x = xlist[i]
     p_t.append(x)
-
-
-    # XXX HERE XXX
-    tau = x
-    theta = pi
-    constpair = 1
-    antisym = False
-
-    pulsef = X_factory(theta, constpair, antisym, tau)
-    pulse_end = tau
+    pulsef = pulsefs[i]
+    pulse_end = x
     # XXX XXX
 
     rho_pulse0, us0 = ezGenerate_Rho(pulsef, t_end, times[0], eta_0, rho_0, N, stepsize)

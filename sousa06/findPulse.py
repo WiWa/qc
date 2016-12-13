@@ -151,7 +151,6 @@ def X_factory(theta, constPair, antisym, tau, normproc="simple", a=None, b=None)
     if antisym:
         underlying = X_antisym
 
-    normproc = "simple"
     return donorm(underlying, 0, tau, normproc=normproc)
 
 # XXX here
@@ -159,8 +158,18 @@ def X_factory(theta, constPair, antisym, tau, normproc="simple", a=None, b=None)
 # naming: data/[pulse]/params
 # p2: period=2, x-w: vary width, full: normproc="full"
 # base = "data/sawtooth/p2_x-w_full/"
-base = "data/rectifier/p2_x-w_norm_peaklook/"
+wave = "rectifier"
+ptitle = "p2_x-w_norm_peaklook"
+base = "data/"+wave+"/"+ptitle+"/"
 # base = "data/throw"
+# periodlist = list(np.arange(0.5, 5.1, 0.1)) # period
+# width ~ pi is nice
+widthlist = list(np.arange(0.3*np.pi, 3.*pi, 0.070*pi)) # width
+# widthlist = list(np.arange(3.5*np.pi, 5.01*pi, 0.1*pi)) # width
+# width_period_list = list([(w,p) for p in periodlist for w in widthlist])
+
+xlist = widthlist
+_periods=2.
 
 print base
 if not os.path.exists(base):
@@ -570,7 +579,7 @@ def ezmap(f, xs):
 p_t = []
 
 # XXX SHAPE
-pulseshape = rectifier(2.,periods=2.)
+pulseshape = rectifier(2.,periods=_periods)
 # pulseshape = X_factory(pi, 2, True, 1, normproc="full")
 tis = np.linspace(0, 6, 1000)
 pulseshape_data = [pulseshape(ti) for ti in tis]
@@ -608,14 +617,8 @@ def SCORPSEfac(partition):
 start = time.time()
 prev_time = -1
 # xlist = [1,2,3,4] # periods
-periodlist = list(np.arange(0.5, 5.1, 0.1)) # period
-# width ~ pi is nice
-widthlist = list(np.arange(0.3*np.pi, 3.*pi, 0.070*pi)) # width
-# widthlist = list(np.arange(3.5*np.pi, 5.01*pi, 0.1*pi)) # width
-width_period_list = list([(w,p) for p in periodlist for w in widthlist])
+pulsefs = [rectifier(x, periods=_periods) for x in xlist]
 
-
-xlist = widthlist
 start = time.time()
 fullstart = start
 for i in range(len(xlist)):
@@ -625,23 +628,19 @@ for i in range(len(xlist)):
     end = time.time()
     print end - start
     start = end
-    # x = a_sym
-    w = xlist[i]
-    # x = w + (4. * np.pi * p)
+
     x = xlist[i]
     p_t.append(x)
+    pulsef = pulsefs[i]
+    pulse_end = x * _periods
 
 
-    # XXX HERE XXX
     # tau = x
     # theta = pi
     # constpair = 1
     # antisym = True
 
     # pulsef = X_factory(theta, constpair, antisym, tau)
-    periods=2.
-    pulsef = rectifier(x, periods)
-    pulse_end = x * periods
     # XXX XXX
 
     rho_pulse0, us0 = ezGenerate_Rho(pulsef, t_end, times[0], eta_0, rho_0, N, stepsize)
