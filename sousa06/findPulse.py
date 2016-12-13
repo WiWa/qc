@@ -69,6 +69,24 @@ dm_1 = np.array([ [0, 0], cb_1 ], np.complex128).T
 # hoa = (hbar / a_max)
 hoa = 1.
 
+def donorm(underlying,s,e, normproc="simple"):
+
+    ma, mi = minmax(underlying, s,e)
+    maxdiff = abs(ma - mi)
+    def simple(t):
+        return underlying(t) / max(abs(ma), abs(mi))
+    def full(t):
+        return (2*underlying(t) / (maxdiff)) - a_max # the 1 comes from amax
+    def capped(t):
+        return minabs(underlying(t), a_max)
+    if normproc == "simple":
+        return simple
+    if normproc == "full":
+        return full
+    if normproc == "capped":
+        return capped
+    raise Exception("bad normproc: " + normproc)
+
 ###### Sym/Antisym pulses
 # 2.0 for "normal"
 # ~4.9 for "capped", 3tauc < .99; 15tauc ~ .98; (useless)
@@ -123,31 +141,14 @@ def X_factory(theta, constPair, antisym, tau, a=None, b=None):
     if antisym:
         underlying = X_antisym
 
-    return donorm(undunderlying, 0, tau, type="full")
-
-def donorm(underlying,s,e, normproc="simple"):
-
-    ma, mi = minmax(underlying, s,e)
-    maxdiff = abs(ma - mi)
-    def simple(t):
-        return underlying(t) / max(abs(ma), abs(mi))
-    def full(t):
-        return (2*underlying(t) / (maxdiff)) - a_max # the 1 comes from amax
-    def capped(t):
-        return minabs(underlying(t), a_max)
-    if normproc == "simple":
-        return simple
-    if normproc == "full":
-        return full
-    if normproc == "capped":
-        return capped
-    raise Exception("bad normproc: " + normproc)
+    return donorm(underlying, 0, tau, normproc="capped")
 
 # XXX here
 
 # naming: data/[pulse]/params
 # p2: period=2, x-w: vary width, full: normproc="full"
-base = "data/sawtooth/p2_x-w_full/"
+# base = "data/sawtooth/p2_x-w_full/"
+base = "data/sympulse/1_capped"
 
 tau_start = (3.5 * pi/ 3.0) * hoa
 tau_end = (16 * pi / 3.0) * hoa
@@ -613,12 +614,16 @@ xlist = widthlist
 #     w_ += dw
 
 # pulsef = X_factory(pi, a1_sym, 0, False)
-# xlist = taus
-xlist = widthlist
+xlist = taus
+# xlist = widthlist
+start = time.time()
 for i in range(len(xlist)):
     # tau = taus[i]
     # a_sym = alist[i]
     print r"%i/%i"%(i, len(xlist))
+    end = time.time()
+    print end - start
+    start = end
     # x = a_sym
     w = xlist[i]
     # x = w + (4. * np.pi * p)
@@ -629,11 +634,11 @@ for i in range(len(xlist)):
     # XXX HERE XXX
     tau = x
     theta = pi
-    constpair = 2
-    antisym = True
+    constpair = 1
+    antisym = False
 
-    # pulsef = X_factory(theta, constpair, antisym, tau)
-    pulsef = sawtooth(x)
+    pulsef = X_factory(theta, constpair, antisym, tau)
+    # pulsef = sawtooth(x)
     # XXX XXX
 
     rho_pulse0, us0 = ezGenerate_Rho(pulsef, t_end, times[0], eta_0, rho_0, N, stepsize)
