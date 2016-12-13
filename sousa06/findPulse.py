@@ -142,7 +142,6 @@ def X_factory(theta, constPair, antisym, tau, normproc="simple", a=None, b=None)
 
     underlying = X_sym
     if antisym:
-        print "asym"
         underlying = X_antisym
 
     normproc = "full"
@@ -153,7 +152,7 @@ def X_factory(theta, constPair, antisym, tau, normproc="simple", a=None, b=None)
 # naming: data/[pulse]/params
 # p2: period=2, x-w: vary width, full: normproc="full"
 # base = "data/sawtooth/p2_x-w_full/"
-base = "data/sym/1_full/"
+base = "data/asym/2_full/"
 # base = "data/throw"
 
 tau_start = (3.7 * pi/ 3.0) * hoa
@@ -568,8 +567,8 @@ def ezmap(f, xs):
 p_t = []
 
 # XXX SHAPE
-pulseshape = x2p(2.,periods=2.2)
-pulseshape = X_factory(pi, 1, False, 1, normproc="full")
+# pulseshape = x2p(2.,periods=2.2)
+pulseshape = X_factory(pi, 2, True, 1, normproc="full")
 tis = np.linspace(0, 2, 1000)
 pulseshape_data = [pulseshape(ti) for ti in tis]
 pshape = plt.figure()
@@ -624,6 +623,7 @@ xlist = widthlist
 xlist = taus
 # xlist = widthlist
 start = time.time()
+fullstart = start
 for i in range(len(xlist)):
     # tau = taus[i]
     # a_sym = alist[i]
@@ -641,8 +641,8 @@ for i in range(len(xlist)):
     # XXX HERE XXX
     tau = x
     theta = pi
-    constpair = 1
-    antisym = False
+    constpair = 2
+    antisym = True
 
     pulsef = X_factory(theta, constpair, antisym, tau)
     # pulsef = sawtooth(x)
@@ -669,6 +669,8 @@ for i in range(len(xlist)):
         [p1, p3, p15], \
         [p_t, p_t, p_t], \
         [sym1, sym3, sym12] )
+
+print "Total Time: " + str(time.time() - fullstart)
 
 if not os.path.exists(base):
     print "Creating directory (at end)"
