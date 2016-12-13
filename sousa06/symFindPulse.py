@@ -80,15 +80,22 @@ def donorm(underlying,s,e, normproc="simple"):
         return (2*underlying(t) / (maxdiff)) - a_max - (2*mi/maxdiff)
     def capped(t):
         return minabs(underlying(t), a_max)
+    normf = None
     if normproc == "none":
-        return underlying
+        normf = underlying
     if normproc == "simple":
-        return simple
+        normf = simple
     if normproc == "full":
-        return full
+        normf = full
     if normproc == "capped":
-        return capped
-    raise Exception("bad normproc: " + normproc)
+        normf = capped
+    if normf is None:
+        raise Exception("bad normproc: " + normproc)
+    def normfbounded(t):
+        if t < s or t > e:
+            return 0
+        return normf(t)
+    return normfbounded
 
 ###### Sym/Antisym pulses
 # 2.0 for "normal"
@@ -595,7 +602,7 @@ if not os.path.exists(base):
     print "Creating directory (at end)"
     os.makedirs(base)
 
-np.savetxt(base+"figfindTaus.txt", taus)
+np.savetxt(base+"figfindTaus.txt", xlist)
 np.savetxt(base+"figfind1.txt", sym1)
 np.savetxt(base+"figfind3.txt", sym3)
 np.savetxt(base+"figfind12.txt", sym12)

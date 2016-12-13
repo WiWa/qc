@@ -80,15 +80,22 @@ def donorm(underlying,s,e, normproc="simple"):
         return (2*underlying(t) / (maxdiff)) - a_max - (2*mi/maxdiff)
     def capped(t):
         return minabs(underlying(t), a_max)
+    normf = None
     if normproc == "none":
-        return underlying
+        normf = underlying
     if normproc == "simple":
-        return simple
+        normf = simple
     if normproc == "full":
-        return full
+        normf = full
     if normproc == "capped":
-        return capped
-    raise Exception("bad normproc: " + normproc)
+        normf = capped
+    if normf is None:
+        raise Exception("bad normproc: " + normproc)
+    def normfbounded(t):
+        if t < s or t > e:
+            return 0
+        return normf(t)
+    return normfbounded
 
 ###### Sym/Antisym pulses
 # 2.0 for "normal"
@@ -152,7 +159,7 @@ def X_factory(theta, constPair, antisym, tau, normproc="simple", a=None, b=None)
 # naming: data/[pulse]/params
 # p2: period=2, x-w: vary width, full: normproc="full"
 # base = "data/sawtooth/p2_x-w_full/"
-base = "data/rectifier/p2_x-w_norm/"
+base = "data/rectifier/p2_x-w_norm_peaklook/"
 # base = "data/throw"
 
 print base
@@ -179,7 +186,7 @@ times = [0.2* hoa, 3.0* hoa, 12.0* hoa]
 ###
 # Performance Params
 ###
-N = 1024 # number of RTN trajectories
+N = 850 # number of RTN trajectories
 stepsize = 0.024 # Step-forward matrices step size, dont lower
 
 ###
@@ -565,7 +572,7 @@ p_t = []
 # XXX SHAPE
 pulseshape = rectifier(2.,periods=2.)
 # pulseshape = X_factory(pi, 2, True, 1, normproc="full")
-tis = np.linspace(0, 5, 1000)
+tis = np.linspace(0, 6, 1000)
 pulseshape_data = [pulseshape(ti) for ti in tis]
 pshape = plt.figure()
 plt.plot(tis, pulseshape_data, 'b-')
@@ -603,18 +610,11 @@ prev_time = -1
 # xlist = [1,2,3,4] # periods
 periodlist = list(np.arange(0.5, 5.1, 0.1)) # period
 # width ~ pi is nice
-widthlist = list(np.arange(0.9*np.pi, 2.21*pi, 0.021*pi)) # width
+widthlist = list(np.arange(0.3*np.pi, 3.*pi, 0.070*pi)) # width
 # widthlist = list(np.arange(3.5*np.pi, 5.01*pi, 0.1*pi)) # width
 width_period_list = list([(w,p) for p in periodlist for w in widthlist])
-# w_start = 0.5*np.pi
-# w_end = 2.0*np.pi
-# w_ = w_start
-# while w_ <= w_end:
-#     xlist.append()
-#     w_ += dw
 
-# pulsef = X_factory(pi, a1_sym, 0, False)
-# xlist = taus
+
 xlist = widthlist
 start = time.time()
 fullstart = start
@@ -639,7 +639,7 @@ for i in range(len(xlist)):
     # antisym = True
 
     # pulsef = X_factory(theta, constpair, antisym, tau)
-    periods = 2.
+    periods=2.
     pulsef = rectifier(x, periods)
     pulse_end = x * periods
     # XXX XXX
@@ -672,7 +672,7 @@ if not os.path.exists(base):
     print "Creating directory (at end)"
     os.makedirs(base)
 
-np.savetxt(base+"figfindTaus.txt", taus)
+np.savetxt(base+"figfindTaus.txt", xlist)
 np.savetxt(base+"figfind1.txt", sym1)
 np.savetxt(base+"figfind3.txt", sym3)
 np.savetxt(base+"figfind12.txt", sym12)
