@@ -210,13 +210,13 @@ def x2p(width, periods):
 def csamplef(f, s, e, sections):
     bins = np.linspace(s, e, sections + 1)
     dbin = bins[1] - bins[0]
-    fsections = [f(t+dbin/2.) for t in bins]
+    fsections = [f(t) for t in bins]
     def g(t):
         if t < 0:
             return 0
         if t >= e:
             return 0
-        bin_num = int(t / dbin)
+        bin_num = int((t+dbin/2.) / dbin)
         return fsections[bin_num]
     return g
 
