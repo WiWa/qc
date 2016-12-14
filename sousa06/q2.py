@@ -798,6 +798,8 @@ plt.plot(chi_time, [sym_pi(t) for t in chi_time], "m-", label="Symmetric Pulse s
 if do_asym:
     plt.plot(chi_time, [asym_pi(t) for t in chi_time], "c-", label="Symmetric Pulse shape using Antisymmetric constant")
     plt.plot(chi_time, [a_SC(t) for t in chi_time], "r-", label="SCORPSE")
+# plt.legend(loc="best")
+plt.ylim([-1.1,1.1])
 
 plt.ion()
 fig, ax = plt.subplots()
