@@ -638,12 +638,12 @@ rho_0 = dm_1
 rho_f = dm_0
 eta_0 = Delta
 
-tau_c_0 = 0.2 * hoa
-tau_c_f = 28. * hoa
+tau_c_0 = 0.1 * hoa
+tau_c_f = 32. * hoa
 ###
 # Performance Params
 ###
-dtau_c = 2.32 * hoa
+dtau_c = 0.52 * hoa
 N = 3000 # number of RTN trajectories
 stepsize = 0.022 # Step-forward matrices step size, dont lower
 
