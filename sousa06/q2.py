@@ -206,6 +206,21 @@ def x2p(width, periods):
         return (((t % width) - (width/2.0)) ** 2)/(2*a_max) - a_max
     return pulse
 
+# constant sample of a function from s to e
+def csamplef(f, s, e, sections):
+    bins = np.linspace(s, e, sections + 1)
+    fsections = [f(t) for t in bins]
+    dbin = bins[1] - bins[0]
+    def g(t):
+        if t < 0:
+            return 0
+        if t > e:
+            return 0
+        bin_num = int(t / dbin)
+        return fsections[bin_num]
+    return g
+
+
 sym_pi = X_factory(pi, a1_sym, 0, False)
 asym_pi = X_factory(pi, a1_asym, b1_asym, False)
 
@@ -647,8 +662,8 @@ tau_c_f = 32. * hoa
 ###
 # Performance Params
 ###
-dtau_c = 0.52 * hoa
-N = 3000 # number of RTN trajectories
+dtau_c = 0.38 * hoa
+N = 1800 # number of RTN trajectories
 stepsize = 0.022 # Step-forward matrices step size, dont lower
 
 ###
@@ -706,7 +721,7 @@ if doGrape:
         grape_amps = GRAPE(T_G, n, 42, rho_0, rho_f, tau_grape, eta_0, stepsize, grape_amps, epsilon)
         print("grapestep "+str(i)+": " + str(time.time() - start))
         print(grape_amps)
-    np.savetxt("data/2strange/grape_pulse.txt", grape_amps)
+    np.savetxt("data/2strange_csample/grape_pulse.txt", grape_amps)
     grape_pulse = aggAmps(grape_amps, T_G)
 else:
     T_G = T_pi
@@ -794,10 +809,12 @@ p_t = []
 shapes = plt.figure()
 chi_time = np.linspace(0-1, tau+1, 1000)
 # if do_sym:
-plt.plot(chi_time, [sym_pi(t) for t in chi_time], "m-", label="Symmetric Pulse shape")
+# plt.plot(chi_time, [sym_pi(t) for t in chi_time], "m-", label="Symmetric Pulse shape")
 if do_asym:
-    plt.plot(chi_time, [asym_pi(t) for t in chi_time], "c-", label="Symmetric Pulse shape using Antisymmetric constant")
+    plt.plot(chi_time, [asym_pi(t) for t in chi_time], "m-", label="Symmetric Pulse")
     plt.plot(chi_time, [a_SC(t) for t in chi_time], "r-", label="SCORPSE")
+    asym_pi = csamplef(asym_pi, 0, tau, 100)
+    plt.plot(chi_time, [asym_pi(t) for t in chi_time], "c-", label="Symmetric Pulse with constant sections")
 # plt.legend(loc="best")
 plt.ylim([-1.1,1.1])
 
@@ -915,20 +932,20 @@ print("time taken: " + str(time.time() - start))
 # fig = plt.figure()
 
 if do_pi:
-    np.savetxt("data/2strange/fids_pi.txt", fids_pi)
+    np.savetxt("data/2strange_csample/fids_pi.txt", fids_pi)
 if do_c:
-    np.savetxt("data/2strange/fids_C.txt", fids_C)
+    np.savetxt("data/2strange_csample/fids_C.txt", fids_C)
 if do_sc:
-    np.savetxt("data/2strange/fids_SC.txt", fids_SC)
+    np.savetxt("data/2strange_csample/fids_SC.txt", fids_SC)
 if do_g:
-    np.savetxt("data/2strange/fids_G.txt", fids_G)
+    np.savetxt("data/2strange_csample/fids_G.txt", fids_G)
 if do_sym:
-    np.savetxt("data/2strange/fids_sym.txt", fids_sym)
+    np.savetxt("data/2strange_csample/fids_sym.txt", fids_sym)
 if do_asym:
-    np.savetxt("data/2strange/fids_asym.txt", fids_asym)
+    np.savetxt("data/2strange_csample/fids_asym.txt", fids_asym)
 
-shapes.savefig("data/2strange/shapes.png")
-fig.savefig("data/2strange/fig.png")
+shapes.savefig("data/2strange_csample/shapes.png")
+fig.savefig("data/2strange_csample/fig.png")
 #
 # # xnew = np.linspace(tau_cs[0],tau_cs[-1],100)
 # # fids_pi = spline(tau_cs, fids_pi, xnew)
