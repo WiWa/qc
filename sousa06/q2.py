@@ -208,7 +208,7 @@ def x2p(width, periods):
 
 # constant sample of a function from s to e
 def csamplef(f, s, e, sections):
-    bins = np.linspace(s, e, sections + 1)
+    bins = np.linspace(s, e, sections)
     dbin = bins[1] - bins[0]
     fsections = [f(t) for t in bins]
     def g(t):
@@ -218,7 +218,17 @@ def csamplef(f, s, e, sections):
             return 0
         bin_num = int((t+dbin/2.) / dbin)
         return fsections[bin_num]
-    return g
+    def lscorpse(t):
+        if t < 0:
+            return 0
+        if t >= e:
+            return 0
+        if t < e/9.:
+            return -1.
+        if t > 8*e/9.:
+            return -1.
+        return 1.
+    return lscorpse
 
 
 sym_pi = X_factory(pi, a1_sym, 0, False)
