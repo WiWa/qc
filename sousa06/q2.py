@@ -214,10 +214,10 @@ def csamplef(f, s, e, sections):
     def g(t):
         if t < 0:
             return 0
-        if t > e:
+        if t >= e:
             return 0
         bin_num = int(t / dbin)
-        return fsections[bin_num]
+        return (fsections[bin_num] + fsections[bin_num+1])/2.
     return g
 
 
@@ -813,7 +813,7 @@ chi_time = np.linspace(0-1, tau+1, 1000)
 if do_asym:
     plt.plot(chi_time, [asym_pi(t) for t in chi_time], "m-", label="Symmetric Pulse")
     plt.plot(chi_time, [a_SC(t) for t in chi_time], "r-", label="SCORPSE")
-    asym_pi = csamplef(asym_pi, 0, tau, 100)
+    asym_pi = csamplef(asym_pi, 0, tau, 9)
     plt.plot(chi_time, [asym_pi(t) for t in chi_time], "c-", label="Symmetric Pulse with constant sections")
 # plt.legend(loc="best")
 plt.ylim([-1.1,1.1])
