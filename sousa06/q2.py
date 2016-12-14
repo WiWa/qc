@@ -818,7 +818,7 @@ if do_sym:
     p_sym, = plt.plot(p_t, fids_sym, 'c--', label="Symmetric pulse")
     pulse_plots.append(p_sym)
 if do_asym:
-    p_asym, = plt.plot(p_t, fids_asym, 'm--', label="Antisymmetric pulse")
+    p_asym, = plt.plot(p_t, fids_asym, 'c-', label=r"Symmetric pulse, $\tau$ = 9.325")
     pulse_plots.append(p_asym)
 
 plt.xlabel(r"$\tau_c / (\hbar / a_{max})$")
