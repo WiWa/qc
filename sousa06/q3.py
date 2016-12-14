@@ -37,19 +37,19 @@ th_time = [0.]
 # XXX PARAMETERS
 
 do_pi = True
-do_c = False
+do_c = True
 do_sc = True
 do_sym = True
 do_asym = False
 
 tau_c_0 = 0.2 * hoa
-tau_c_f = 30. * hoa
+tau_c_f = 35. * hoa
 ###
 # Performance Params
 ###
 dtau_c = 0.82 * hoa
-N = 2700 # number of RTN trajectories
-stepsize = 0.023 # Step-forward matrices step size, dont lower or raise
+N = 2500 # number of RTN trajectories
+stepsize = 0.0225 # Step-forward matrices step size, dont lower or raise
 
 ###
 t_end = tau_c_f + 0.42 * hoa # end of RTN
@@ -232,8 +232,8 @@ def minmax(f, s, e):
     mi = min(fs)
     return ma, mi
 
-mytau = 9.12
-sym_pi = X_factory(pi, 1, False, mytau,normproc="full")
+mytau = 9.325
+sym_pi = X_factory(pi, 1, False, mytau,normproc="full",a=(5.263022/mytau))
 
 def x2p(width, periods):
     def pulse(t):
@@ -552,7 +552,7 @@ if do_asym:
 
 p_t = []
 
-plt.figure()
+shapefig = plt.figure()
 chi_time = np.linspace(0, mytau, 500)
 if do_sym:
     plt.plot(chi_time, [sym_pi(t) for t in chi_time], "c-", label="Symmetric Pulse shape")
@@ -636,12 +636,12 @@ for i in range(len(tau_cs)):
 
     if do_sym:
         rho_sym, us = ezGenerate_Rho(sym_pi, t_end, tau_c, eta_0, rho_0, N, stepsize)
-        fid_sym = fidSingleTxDirect(rho_f, rho_sym, tau)
+        fid_sym = fidSingleTxDirect(rho_f, rho_sym, mytau)
         fids_sym.append(fid_sym)
 
     if do_asym:
         rho_asym, us = ezGenerate_Rho(asym_pi, t_end, tau_c, eta_0, rho_0, N, stepsize)
-        fid_asym = fidSingleTxDirect(rho_f, rho_asym, tau)
+        fid_asym = fidSingleTxDirect(rho_f, rho_asym, mytau)
         fids_asym.append(fid_asym)
 
     update_plots(fig, ax, \
@@ -658,12 +658,13 @@ if do_pi:
 if do_c:
     np.savetxt("data/q3/fids_C.txt", fids_C)
 if do_sc:
-    np.savetxt("dataq/q3/fids_SC.txt", fids_SC)
+    np.savetxt("data/q3/fids_SC.txt", fids_SC)
 if do_sym:
     np.savetxt("data/q3/fids_sym.txt", fids_sym)
 if do_asym:
     np.savetxt("data/q3/fids_asym.txt", fids_asym)
 
+shapefig.savefig("data/q3/shape.png")
 fig.savefig("data/q3/fig.png")
 
 print("Done! Press Enter to exit.")
