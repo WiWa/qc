@@ -721,7 +721,7 @@ if doGrape:
         grape_amps = GRAPE(T_G, n, 42, rho_0, rho_f, tau_grape, eta_0, stepsize, grape_amps, epsilon)
         print("grapestep "+str(i)+": " + str(time.time() - start))
         print(grape_amps)
-    np.savetxt("data/2strange_csample_9sec/grape_pulse.txt", grape_amps)
+    np.savetxt("data/2strange_csample_9sec_mid/grape_pulse.txt", grape_amps)
     grape_pulse = aggAmps(grape_amps, T_G)
 else:
     T_G = T_pi
@@ -932,20 +932,20 @@ print("time taken: " + str(time.time() - start))
 # fig = plt.figure()
 
 if do_pi:
-    np.savetxt("data/2strange_csample_9sec/fids_pi.txt", fids_pi)
+    np.savetxt("data/2strange_csample_9sec_mid/fids_pi.txt", fids_pi)
 if do_c:
-    np.savetxt("data/2strange_csample_9sec/fids_C.txt", fids_C)
+    np.savetxt("data/2strange_csample_9sec_mid/fids_C.txt", fids_C)
 if do_sc:
-    np.savetxt("data/2strange_csample_9sec/fids_SC.txt", fids_SC)
+    np.savetxt("data/2strange_csample_9sec_mid/fids_SC.txt", fids_SC)
 if do_g:
-    np.savetxt("data/2strange_csample_9sec/fids_G.txt", fids_G)
+    np.savetxt("data/2strange_csample_9sec_mid/fids_G.txt", fids_G)
 if do_sym:
-    np.savetxt("data/2strange_csample_9sec/fids_sym.txt", fids_sym)
+    np.savetxt("data/2strange_csample_9sec_mid/fids_sym.txt", fids_sym)
 if do_asym:
-    np.savetxt("data/2strange_csample_9sec/fids_asym.txt", fids_asym)
+    np.savetxt("data/2strange_csample_9sec_mid/fids_asym.txt", fids_asym)
 
-shapes.savefig("data/2strange_csample_9sec/shapes.png")
-fig.savefig("data/2strange_csample_9sec/fig.png")
+shapes.savefig("data/2strange_csample_9sec_mid/shapes.png")
+fig.savefig("data/2strange_csample_9sec_mid/fig.png")
 #
 # # xnew = np.linspace(tau_cs[0],tau_cs[-1],100)
 # # fids_pi = spline(tau_cs, fids_pi, xnew)
