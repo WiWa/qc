@@ -42,12 +42,13 @@ do_sc = True
 do_sym = True
 do_asym = False
 
-tau_c_0 = 0.2 * hoa
-tau_c_f = 35. * hoa
+tau_c_0 = 80. * hoa
+tau_c_f = 100.2 * hoa
 ###
 # Performance Params
 ###
-dtau_c = 0.82 * hoa
+# dtau_c = 0.82 * hoa
+dtau_c = 5.0
 N = 2500 # number of RTN trajectories
 stepsize = 0.0225 # Step-forward matrices step size, dont lower or raise
 
@@ -144,21 +145,33 @@ def donorm(underlying,s,e, normproc="simple"):
 
     ma, mi = minmax(underlying, s,e)
     maxdiff = abs(ma - mi)
+    # print maxdiff
     def simple(t):
         return underlying(t) / max(abs(ma), abs(mi))
     def full(t):
         return (2*underlying(t) / (maxdiff)) - a_max - (2*mi/maxdiff)
     def capped(t):
         return minabs(underlying(t), a_max)
+    def pos(t):
+        return (full(t) + a_max ) /2.
+    normf = None
     if normproc == "none":
-        return underlying
+        normf = underlying
     if normproc == "simple":
-        return simple
+        normf = simple
     if normproc == "full":
-        return full
+        normf = full
     if normproc == "capped":
-        return capped
-    raise Exception("bad normproc: " + normproc)
+        normf = capped
+    if normproc == "pos":
+        normf = pos
+    if normf is None:
+        raise Exception("bad normproc: " + normproc)
+    def normfbounded(t):
+        if t < s or t > e:
+            return 0
+        return normf(t)
+    return normfbounded
 
 ###### Sym/Antisym pulses
 # 2.0 for "normal"
@@ -553,7 +566,7 @@ if do_asym:
 p_t = []
 
 shapefig = plt.figure()
-chi_time = np.linspace(0, mytau, 500)
+chi_time = np.linspace(0-1, mytau+1, 1000)
 if do_sym:
     plt.plot(chi_time, [sym_pi(t) for t in chi_time], "c-", label="Symmetric Pulse shape")
 if do_asym:
@@ -654,18 +667,18 @@ for i in range(len(tau_cs)):
 print("time taken: " + str(time.time() - start))
 
 if do_pi:
-    np.savetxt("data/q3/fids_pi.txt", fids_pi)
+    np.savetxt("data/q3/check-donorm/fids_pi.txt", fids_pi)
 if do_c:
-    np.savetxt("data/q3/fids_C.txt", fids_C)
+    np.savetxt("data/q3/check-donorm/fids_C.txt", fids_C)
 if do_sc:
-    np.savetxt("data/q3/fids_SC.txt", fids_SC)
+    np.savetxt("data/q3/check-donorm/fids_SC.txt", fids_SC)
 if do_sym:
-    np.savetxt("data/q3/fids_sym.txt", fids_sym)
+    np.savetxt("data/q3/check-donorm/fids_sym.txt", fids_sym)
 if do_asym:
-    np.savetxt("data/q3/fids_asym.txt", fids_asym)
+    np.savetxt("data/q3/check-donorm/fids_asym.txt", fids_asym)
 
-shapefig.savefig("data/q3/shape.png")
-fig.savefig("data/q3/fig.png")
+shapefig.savefig("data/q3/check-donorm/shape.png")
+fig.savefig("data/q3/check-donorm/fig.png")
 
 print("Done! Press Enter to exit.")
 raw_input()
