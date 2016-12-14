@@ -119,7 +119,8 @@ def a_SC2(t):
 # 2.0 for "normal"
 # ~4.9 for "capped", 3tauc < .99; 15tauc ~ .98; (useless)
 # ~7.9 for normed, even worse than capped
-tau = 4.9 * hoa # Electron relaxation time; idk the "real" value :)
+# tau = 4.9 * hoa # Electron relaxation time; idk the "real" value :)
+tau = 9.325 # max for full normalization
 # See paper by S. Pasini for constants
 a1_sym = -2.159224 * (1/tau)
 a2_sym = -5.015588 * (1/tau)
@@ -160,11 +161,15 @@ def X_factory(theta, a, b, antisym):
     underlying = X_sym
     if antisym:
         underlying = X_antisym
-    norm = maximize(underlying, 0, tau)
+    # norm = maximize(underlying, 0, tau)
+    ma, mi = minmax(underlying, 0, tau)
+    maxdiff = ma - mi
     def normmed(t):
-        return underlying(t) / norm
+        return underlying(t) / max(abs(ma),abs(mi))
+    def fullnorm(t):
+        return (2*(underlying(t) - mi) / (maxdiff)) - a_max
 
-    return normmed
+    return fullnorm
 
 def minabs(x, y):
     if abs(x) < abs(y):
@@ -179,6 +184,14 @@ def maximize(f, s, e):
     m = max([abs(f(t)) for t in ts])
     return m
 
+# maximize f from s to e
+def minmax(f, s, e):
+    ts = np.linspace(s, e, 3000)
+    fs = [(f(t)) for t in ts]
+    ma = max(fs)
+    mi = min(fs)
+    return ma, mi
+
 def x2p(width, periods):
     def pulse(t):
         if t < 0:
@@ -190,7 +203,7 @@ def x2p(width, periods):
     return pulse
 
 sym_pi = X_factory(pi, a1_sym, 0, False)
-asym_pi = X_factory(pi, a1_asym, b1_asym, True)
+asym_pi = X_factory(pi, a1_asym, b1_asym, False)
 
 # Systematic Error
 def eta_sys(t):
@@ -610,8 +623,8 @@ def update_plots(fig, ax, plots, xss, yss):
         plot = plots[i]
         xs = xss[i]
         ys = yss[i]
-        plot.set_xdata(xs)
-        plot.set_ydata(ys)
+        plot.set_xdata/2strange(xs)
+        plot.set_ydata/2strange(ys)
     ax.relim()
     ax.autoscale_view()
     fig.canvas.draw()
@@ -689,7 +702,7 @@ if doGrape:
         grape_amps = GRAPE(T_G, n, 42, rho_0, rho_f, tau_grape, eta_0, stepsize, grape_amps, epsilon)
         print("grapestep "+str(i)+": " + str(time.time() - start))
         print(grape_amps)
-    np.savetxt("data/grape_pulse.txt", grape_amps)
+    np.savetxt("data/2strange/grape_pulse.txt", grape_amps)
     grape_pulse = aggAmps(grape_amps, T_G)
 else:
     T_G = T_pi
@@ -723,13 +736,13 @@ end of RTN:
 Starting...
 """.format(**locals()))
 
-do_pi = True
+do_pi = False
 do_c = False
 do_sc = True
 # do_g = doGrape
 do_g = False
-do_sym = True
-do_asym = False
+do_sym = False
+do_asym = True
 
 fidelities = []
 if do_pi:
@@ -774,12 +787,13 @@ def ezmap(f, xs):
 
 p_t = []
 
-plt.figure()
-chi_time = np.linspace(0, tau, 500)
-if do_sym:
-    plt.plot(chi_time, [sym_pi(t) for t in chi_time], "c-", label="Symmetric Pulse shape")
+shapes = plt.figure()
+chi_time = np.linspace(0-1, tau+1, 1000)
+# if do_sym:
+plt.plot(chi_time, [sym_pi(t) for t in chi_time], "m-", label="Symmetric Pulse shape")
 if do_asym:
-    plt.plot(chi_time, [asym_pi(t) for t in chi_time], "m-", label="Antisymmetric Pulse shape")
+    plt.plot(chi_time, [asym_pi(t) for t in chi_time], "c-", label="Symmetric Pulse shape using Antisymmetric constant")
+    plt.plot(chi_time, [a_SC(t) for t in chi_time], "r-", label="SCORPSE")
 
 plt.ion()
 fig, ax = plt.subplots()
@@ -895,19 +909,20 @@ print("time taken: " + str(time.time() - start))
 # fig = plt.figure()
 
 if do_pi:
-    np.savetxt("data/fids_pi.txt", fids_pi)
+    np.savetxt("data/2strange/fids_pi.txt", fids_pi)
 if do_c:
-    np.savetxt("data/fids_C.txt", fids_C)
+    np.savetxt("data/2strange/fids_C.txt", fids_C)
 if do_sc:
-    np.savetxt("data/fids_SC.txt", fids_SC)
+    np.savetxt("data/2strange/fids_SC.txt", fids_SC)
 if do_g:
-    np.savetxt("data/fids_G.txt", fids_G)
+    np.savetxt("data/2strange/fids_G.txt", fids_G)
 if do_sym:
-    np.savetxt("data/fids_sym.txt", fids_sym)
+    np.savetxt("data/2strange/fids_sym.txt", fids_sym)
 if do_asym:
-    np.savetxt("data/fids_asym.txt", fids_asym)
+    np.savetxt("data/2strange/fids_asym.txt", fids_asym)
 
-fig.savefig("data/fig.png")
+shapes.savefig("data/2strange/shapes.png")
+fig.savefig("data/2strange/fig.png")
 #
 # # xnew = np.linspace(tau_cs[0],tau_cs[-1],100)
 # # fids_pi = spline(tau_cs, fids_pi, xnew)
