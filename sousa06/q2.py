@@ -167,6 +167,10 @@ def X_factory(theta, a, b, antisym):
     def normmed(t):
         return underlying(t) / max(abs(ma),abs(mi))
     def fullnorm(t):
+        if t < 0:
+            return 0
+        elif t > tau:
+            return 0
         return (2*(underlying(t) - mi) / (maxdiff)) - a_max
 
     return fullnorm
