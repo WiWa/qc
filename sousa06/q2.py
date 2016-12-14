@@ -623,8 +623,8 @@ def update_plots(fig, ax, plots, xss, yss):
         plot = plots[i]
         xs = xss[i]
         ys = yss[i]
-        plot.set_xdata/2strange(xs)
-        plot.set_ydata/2strange(ys)
+        plot.set_xdata(xs)
+        plot.set_ydata(ys)
     ax.relim()
     ax.autoscale_view()
     fig.canvas.draw()
