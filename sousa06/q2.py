@@ -664,7 +664,7 @@ tau_c_f = 31. * hoa
 ###
 dtau_c = 0.29 * hoa
 N = 10000 # number of RTN trajectories
-stepsize = 0.0215 # Step-forward matrices step size, dont lower
+stepsize = 0.020 # Step-forward matrices step size, dont lower
 
 ###
 t_end = tau_c_f + 0.42 * hoa # end of RTN
