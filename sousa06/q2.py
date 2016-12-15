@@ -217,18 +217,10 @@ def csamplef(f, s, e, sections):
         if t >= e:
             return 0
         bin_num = int((t+dbin/2.) / dbin)
+        if bin_num == (sections)/2:
+            return 1
         return fsections[bin_num]
-    def lscorpse(t):
-        if t < 0:
-            return 0
-        if t >= e:
-            return 0
-        if t < e/9.:
-            return -1.
-        if t > 8*e/9.:
-            return -1.
-        return 1.
-    return lscorpse
+    return g
 
 
 sym_pi = X_factory(pi, a1_sym, 0, False)
@@ -731,7 +723,7 @@ if doGrape:
         grape_amps = GRAPE(T_G, n, 42, rho_0, rho_f, tau_grape, eta_0, stepsize, grape_amps, epsilon)
         print("grapestep "+str(i)+": " + str(time.time() - start))
         print(grape_amps)
-    np.savetxt("data/lscorpse/grape_pulse.txt", grape_amps)
+    np.savetxt("data/2strange_csample_9sec_mid_high-middle/grape_pulse.txt", grape_amps)
     grape_pulse = aggAmps(grape_amps, T_G)
 else:
     T_G = T_pi
@@ -851,8 +843,7 @@ if do_sym:
     p_sym, = plt.plot(p_t, fids_sym, 'c--', label="Symmetric pulse")
     pulse_plots.append(p_sym)
 if do_asym:
-    # p_asym, = plt.plot(p_t, fids_asym, 'c-', label=r"Symmetric pulse, $\tau$ = 9.325")
-    p_asym, = plt.plot(p_t, fids_asym, 'c-', label=r"Longer SCORPSE$\tau$ = 9.325")
+    p_asym, = plt.plot(p_t, fids_asym, 'c-', label=r"Symmetric pulse, $\tau$ = 9.325")
     pulse_plots.append(p_asym)
 
 plt.xlabel(r"$\tau_c / (\hbar / a_{max})$")
@@ -943,20 +934,20 @@ print("time taken: " + str(time.time() - start))
 # fig = plt.figure()
 
 if do_pi:
-    np.savetxt("data/lscorpse/fids_pi.txt", fids_pi)
+    np.savetxt("data/2strange_csample_9sec_mid_high-middle/fids_pi.txt", fids_pi)
 if do_c:
-    np.savetxt("data/lscorpse/fids_C.txt", fids_C)
+    np.savetxt("data/2strange_csample_9sec_mid_high-middle/fids_C.txt", fids_C)
 if do_sc:
-    np.savetxt("data/lscorpse/fids_SC.txt", fids_SC)
+    np.savetxt("data/2strange_csample_9sec_mid_high-middle/fids_SC.txt", fids_SC)
 if do_g:
-    np.savetxt("data/lscorpse/fids_G.txt", fids_G)
+    np.savetxt("data/2strange_csample_9sec_mid_high-middle/fids_G.txt", fids_G)
 if do_sym:
-    np.savetxt("data/lscorpse/fids_sym.txt", fids_sym)
+    np.savetxt("data/2strange_csample_9sec_mid_high-middle/fids_sym.txt", fids_sym)
 if do_asym:
-    np.savetxt("data/lscorpse/fids_asym.txt", fids_asym)
+    np.savetxt("data/2strange_csample_9sec_mid_high-middle/fids_asym.txt", fids_asym)
 
-shapes.savefig("data/lscorpse/shapes.png")
-fig.savefig("data/lscorpse/fig.png")
+shapes.savefig("data/2strange_csample_9sec_mid_high-middle/shapes.png")
+fig.savefig("data/2strange_csample_9sec_mid_high-middle/fig.png")
 #
 # # xnew = np.linspace(tau_cs[0],tau_cs[-1],100)
 # # fids_pi = spline(tau_cs, fids_pi, xnew)
