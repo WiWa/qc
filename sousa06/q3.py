@@ -245,7 +245,7 @@ def minmax(f, s, e):
     mi = min(fs)
     return ma, mi
 
-mytau = 9.325
+mytau = 4.325
 sym_pi = X_factory(pi, 1, False, mytau,normproc="full",a=(5.263022/mytau))
 
 def x2p(width, periods):
@@ -667,18 +667,18 @@ for i in range(len(tau_cs)):
 print("time taken: " + str(time.time() - start))
 
 if do_pi:
-    np.savetxt("data/q3/check-donorm/fids_pi.txt", fids_pi)
+    np.savetxt("data/q3/check-bad/fids_pi.txt", fids_pi)
 if do_c:
-    np.savetxt("data/q3/check-donorm/fids_C.txt", fids_C)
+    np.savetxt("data/q3/check-bad/fids_C.txt", fids_C)
 if do_sc:
-    np.savetxt("data/q3/check-donorm/fids_SC.txt", fids_SC)
+    np.savetxt("data/q3/check-bad/fids_SC.txt", fids_SC)
 if do_sym:
-    np.savetxt("data/q3/check-donorm/fids_sym.txt", fids_sym)
+    np.savetxt("data/q3/check-bad/fids_sym.txt", fids_sym)
 if do_asym:
-    np.savetxt("data/q3/check-donorm/fids_asym.txt", fids_asym)
+    np.savetxt("data/q3/check-bad/fids_asym.txt", fids_asym)
 
-shapefig.savefig("data/q3/check-donorm/shape.png")
-fig.savefig("data/q3/check-donorm/fig.png")
+shapefig.savefig("data/q3/check-bad/shape.png")
+fig.savefig("data/q3/check-bad/fig.png")
 
 print("Done! Press Enter to exit.")
 raw_input()
