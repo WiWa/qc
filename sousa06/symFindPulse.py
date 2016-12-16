@@ -1,8 +1,8 @@
 import os, sys, time
-sys.path.append("/home/arbiter/qc")
+sys.path.append("C:\Users\TheOtherKaiba\Desktop\qc")
 
 from mod import (
-                np, sp,
+                np,
                 mpl, plt,
                 qc_dir,
                 unpy,
@@ -13,9 +13,9 @@ from scipy.constants import hbar, pi
 from scipy.linalg import expm
 from scipy.interpolate import spline
 from itertools import takewhile, repeat
-from multiprocess import Pool
-from parallel import parallel
-from multiprocess.dummy import Pool as ThreadPool
+# from multiprocess import Pool
+# from parallel import parallel
+# from multiprocess.dummy import Pool as ThreadPool
 from math import cos, sin
 import linmax
 import dill
@@ -117,6 +117,7 @@ def X_factory(theta, constPair, antisym, tau, normproc="simple", a=None, b=None)
 
     constfinder = { False: [None, (a1_sym,0), (a2_sym,0)],
                     True: [None, (a1_asym,b1_asym), (a2_asym,b2_asym)]}
+
     a_, b_ = constfinder[antisym][constPair]
     if a is None:
         a = a_
@@ -159,19 +160,19 @@ def X_factory(theta, constPair, antisym, tau, normproc="simple", a=None, b=None)
 # p2: period=2, x-w: vary width, full: normproc="full"
 # base = "data/sawtooth/p2_x-w_full/"
 # base = "data/throw"
-wave = "sym"
-ptitle = "p2_x-1_full_redo"
+wave = "strangesym"
+ptitle = "high-accuracy"
 base = "data/"+wave+"/"+ptitle+"/"
 _antisym = False
 _theta = pi
 _constpair = 1
 _normproc = "full"
 
-tau_start = (3.7 * pi/ 3.0) * hoa
-tau_end = (16.5 * pi / 3.0) * hoa
-# tau_start = 9.2 * hoa
-# tau_end = 16.2 * hoa
-dtau = 0.42 * hoa
+# tau_start = (11.6 * pi/ 3.0) * hoa
+# tau_end = (12.7 * pi / 3.0) * hoa
+tau_start = 9.20 * hoa
+tau_end = 9.51 * hoa
+dtau = 0.05 * hoa
 
 print base
 if not os.path.exists(base):
@@ -193,12 +194,12 @@ def minmax(f, s, e):
     mi = min(fs)
     return ma, mi
 
-times = [0.2* hoa, 3.0* hoa, 12.0* hoa]
+times = [0.2* hoa, 3.0* hoa, 32.0* hoa]
 ###
 # Performance Params
 ###
-N = 875 # number of RTN trajectories
-stepsize = 0.024 # Step-forward matrices step size, dont lower
+N = 8192 # number of RTN trajectories
+stepsize = 0.020 # Step-forward matrices step size, dont lower
 
 ###
 t_end = times[2] + 0.32 # end of RTN
@@ -343,7 +344,7 @@ def generateU_k(a, eta_k, stepsize=0.03, t0=0., te=None):
         C = G(ts[0])
         for i in range(1, len(ts)):
             # G_avg = 0.5 * (G(ts[i-1]) + G(ts[i]))
-            C = BCH(C, G(ts[i]), order=5)
+            C = BCH(C, G(ts[i]), order=6)
 
         # C = sum(Ss)
         # U_count[0] += 1
@@ -517,12 +518,13 @@ def ezmap(f, xs):
 p_t = []
 
 # XXX SHAPE
-pulseshape = X_factory(_theta, _constpair, _antisym, 1, normproc=_normproc)
-tis = np.linspace(0, 2, 1000)
+pulseshape = X_factory(_theta, _constpair, _antisym, 9.12, normproc=_normproc,
+                                                    a=5.263022/9.12)
+tis = np.linspace(0, 10, 1000)
 pulseshape_data = [pulseshape(ti) for ti in tis]
 pshape = plt.figure()
 plt.plot(tis, pulseshape_data, 'b-')
-# plt.show()
+plt.show()
 
 plt.ion()
 fig, ax = plt.subplots()
@@ -557,8 +559,8 @@ prev_time = -1
 xlist = taus
 
 # XXX HERE XXX
-pulsefs = [X_factory(_theta, _constpair, _antisym, tau, normproc=_normproc)
-                                                for tau in xlist]
+pulsefs = [X_factory(_theta, _constpair, _antisym, tau, normproc=_normproc,
+                                    a=(5.263022/tau)) for tau in xlist]
 
 start = time.time()
 fullstart = start
