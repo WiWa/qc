@@ -217,8 +217,6 @@ def csamplef(f, s, e, sections):
         if t >= e:
             return 0
         bin_num = int((t+dbin/2.) / dbin)
-        if bin_num == (sections)/2:
-            return 1
         return fsections[bin_num]
     return g
 
@@ -361,7 +359,7 @@ def generateU_k(a, eta_k, stepsize=0.03, t0=0., te=None):
         C = G(ts[0])
         for i in range(1, len(ts)):
             # G_avg = 0.5 * (G(ts[i-1]) + G(ts[i]))
-            C = BCH(C, G(ts[i]), order=5)
+            C = BCH(C, G(ts[i]), order=6)
 
         # C = sum(Ss)
         # U_count[0] += 1
@@ -386,7 +384,7 @@ k7 = np.array(1/120.,np.complex128)
 #   It takes about 85-90% more time.
 #   Which translates to ~20-25% more time in total.
 # Order 6 takes a long time.
-def BCH(A, B, order=4):
+def BCH(A, B, order=5):
     start = time.time()
 
     c1 = np.dot(k1,comm(A, B))
@@ -660,13 +658,13 @@ rho_f = dm_0
 eta_0 = Delta
 
 tau_c_0 = 0.1 * hoa
-tau_c_f = 32. * hoa
+tau_c_f = 31. * hoa
 ###
 # Performance Params
 ###
-dtau_c = 0.38 * hoa
-N = 1200 # number of RTN trajectories
-stepsize = 0.022 # Step-forward matrices step size, dont lower
+dtau_c = 0.29 * hoa
+N = 10000 # number of RTN trajectories
+stepsize = 0.020 # Step-forward matrices step size, dont lower
 
 ###
 t_end = tau_c_f + 0.42 * hoa # end of RTN
@@ -815,8 +813,8 @@ chi_time = np.linspace(0-1, tau+1, 1000)
 if do_asym:
     plt.plot(chi_time, [asym_pi(t) for t in chi_time], "m-", label="Symmetric Pulse")
     plt.plot(chi_time, [a_SC(t) for t in chi_time], "r-", label="SCORPSE")
-    asym_pi = csamplef(asym_pi, 0, tau, 9)
-    plt.plot(chi_time, [asym_pi(t) for t in chi_time], "c-", label="Symmetric Pulse with constant sections")
+    # asym_pi = csamplef(asym_pi, 0, tau, 9)
+    # plt.plot(chi_time, [asym_pi(t) for t in chi_time], "c-", label="Symmetric Pulse with constant sections")
 # plt.legend(loc="best")
 plt.ylim([-1.1,1.1])
 
