@@ -524,7 +524,7 @@ tis = np.linspace(0, 10, 1000)
 pulseshape_data = [pulseshape(ti) for ti in tis]
 pshape = plt.figure()
 plt.plot(tis, pulseshape_data, 'b-')
-plt.show()
+# plt.show()
 
 plt.ion()
 fig, ax = plt.subplots()

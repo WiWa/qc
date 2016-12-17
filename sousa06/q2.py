@@ -34,6 +34,10 @@ th_time = [0.]
 
 profiling = False
 parallel = (not profiling) and True
+base = "data/2strange-high-accuracy-bch-7/"
+if not os.path.exists(base):
+    print "Creating directory"
+    os.makedirs(base)
 
 
 sigmaX = np.array([    [0., 1.]  ,
@@ -359,7 +363,7 @@ def generateU_k(a, eta_k, stepsize=0.03, t0=0., te=None):
         C = G(ts[0])
         for i in range(1, len(ts)):
             # G_avg = 0.5 * (G(ts[i-1]) + G(ts[i]))
-            C = BCH(C, G(ts[i]), order=6)
+            C = BCH(C, G(ts[i]), order=7)
 
         # C = sum(Ss)
         # U_count[0] += 1
@@ -657,14 +661,14 @@ rho_0 = dm_1
 rho_f = dm_0
 eta_0 = Delta
 
-tau_c_0 = 0.1 * hoa
-tau_c_f = 31. * hoa
+tau_c_0 = 80.1 * hoa
+tau_c_f = 92. * hoa
 ###
 # Performance Params
 ###
-dtau_c = 0.29 * hoa
-N = 10000 # number of RTN trajectories
-stepsize = 0.020 # Step-forward matrices step size, dont lower
+dtau_c = 50.29 * hoa
+N = 40000 # number of RTN trajectories
+stepsize = 0.002 # Step-forward matrices step size, dont lower
 
 ###
 t_end = tau_c_f + 0.42 * hoa # end of RTN
@@ -721,7 +725,7 @@ if doGrape:
         grape_amps = GRAPE(T_G, n, 42, rho_0, rho_f, tau_grape, eta_0, stepsize, grape_amps, epsilon)
         print("grapestep "+str(i)+": " + str(time.time() - start))
         print(grape_amps)
-    np.savetxt("data/2strange_csample_9sec_mid_high-middle/grape_pulse.txt", grape_amps)
+    np.savetxt(base + "grape_pulse.txt", grape_amps)
     grape_pulse = aggAmps(grape_amps, T_G)
 else:
     T_G = T_pi
@@ -925,27 +929,35 @@ for i in range(len(tau_cs)):
         [p_t for i in range(len(pulse_plots))], \
         fidelities )
 
+    print tau_cs[-1]
+    print fids_SC[-1]
+    print fids_asym[-1]
+
     miniend = time.time()
     prev_time = miniend - ministart
 print("time taken: " + str(time.time() - start))
 
 # fig = plt.figure()
 
-if do_pi:
-    np.savetxt("data/2strange_csample_9sec_mid_high-middle/fids_pi.txt", fids_pi)
-if do_c:
-    np.savetxt("data/2strange_csample_9sec_mid_high-middle/fids_C.txt", fids_C)
-if do_sc:
-    np.savetxt("data/2strange_csample_9sec_mid_high-middle/fids_SC.txt", fids_SC)
-if do_g:
-    np.savetxt("data/2strange_csample_9sec_mid_high-middle/fids_G.txt", fids_G)
-if do_sym:
-    np.savetxt("data/2strange_csample_9sec_mid_high-middle/fids_sym.txt", fids_sym)
-if do_asym:
-    np.savetxt("data/2strange_csample_9sec_mid_high-middle/fids_asym.txt", fids_asym)
+if not os.path.exists(base):
+    print "Creating directory (at end)"
+    os.makedirs(base)
 
-shapes.savefig("data/2strange_csample_9sec_mid_high-middle/shapes.png")
-fig.savefig("data/2strange_csample_9sec_mid_high-middle/fig.png")
+# if do_pi:
+#     np.savetxt(base + "fids_pi.txt", fids_pi)
+# if do_c:
+#     np.savetxt(base + "fids_C.txt", fids_C)
+# if do_sc:
+#     np.savetxt(base + "fids_SC.txt", fids_SC)
+# if do_g:
+#     np.savetxt(base + "fids_G.txt", fids_G)
+# if do_sym:
+#     np.savetxt(base + "fids_sym.txt", fids_sym)
+# if do_asym:
+#     np.savetxt(base + "fids_asym.txt", fids_asym)
+#
+# shapes.savefig(base + "shapes.png")
+# fig.savefig(base + "fig.png")
 #
 # # xnew = np.linspace(tau_cs[0],tau_cs[-1],100)
 # # fids_pi = spline(tau_cs, fids_pi, xnew)
