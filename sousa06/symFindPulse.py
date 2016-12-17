@@ -161,7 +161,7 @@ def X_factory(theta, constPair, antisym, tau, normproc="simple", a=None, b=None)
 # base = "data/sawtooth/p2_x-w_full/"
 # base = "data/throw"
 wave = "strangesym"
-ptitle = "high-accuracy"
+ptitle = "high-accuracy-detail"
 base = "data/"+wave+"/"+ptitle+"/"
 _antisym = False
 _theta = pi
@@ -170,9 +170,9 @@ _normproc = "full"
 
 # tau_start = (11.6 * pi/ 3.0) * hoa
 # tau_end = (12.7 * pi / 3.0) * hoa
-tau_start = 9.20 * hoa
-tau_end = 9.51 * hoa
-dtau = 0.05 * hoa
+tau_start = 9.28 * hoa
+tau_end = 9.351 * hoa
+dtau = 0.005 * hoa
 
 print base
 if not os.path.exists(base):
@@ -194,12 +194,12 @@ def minmax(f, s, e):
     mi = min(fs)
     return ma, mi
 
-times = [0.2* hoa, 3.0* hoa, 32.0* hoa]
+times = [0.2* hoa, 15.0* hoa, 50.0* hoa]
 ###
 # Performance Params
 ###
-N = 8192 # number of RTN trajectories
-stepsize = 0.020 # Step-forward matrices step size, dont lower
+N = 30000 # number of RTN trajectories
+stepsize = 0.018 # Step-forward matrices step size, dont lower
 
 ###
 t_end = times[2] + 0.32 # end of RTN
@@ -524,7 +524,7 @@ tis = np.linspace(0, 10, 1000)
 pulseshape_data = [pulseshape(ti) for ti in tis]
 pshape = plt.figure()
 plt.plot(tis, pulseshape_data, 'b-')
-plt.show()
+# plt.show()
 
 plt.ion()
 fig, ax = plt.subplots()
