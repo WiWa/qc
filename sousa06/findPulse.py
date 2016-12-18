@@ -78,7 +78,7 @@ def donorm(underlying,s,e, normproc="simple"):
 
     ma, mi = minmax(underlying, s,e)
     maxdiff = abs(ma - mi)
-    # print maxdiff
+    
     def simple(t):
         return underlying(t) / max(abs(ma), abs(mi))
     def full(t):

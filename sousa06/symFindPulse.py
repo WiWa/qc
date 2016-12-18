@@ -161,7 +161,7 @@ def X_factory(theta, constPair, antisym, tau, normproc="simple", a=None, b=None)
 # base = "data/sawtooth/p2_x-w_full/"
 # base = "data/throw"
 wave = "strangesym"
-ptitle = "a_search_5-2_5-3"
+ptitle = "high-accuracy-wtf"
 base = "data/"+wave+"/"+ptitle+"/"
 _antisym = False
 _theta = pi
@@ -172,10 +172,7 @@ _normproc = "full"
 # tau_end = (12.7 * pi / 3.0) * hoa
 tau_start = 9.28 * hoa
 tau_end = 9.351 * hoa
-dtau = 0.005 * hoa
-a_start = 5.2
-a_end = 5.3
-d_a = .008
+dtau = 0.15 * hoa
 
 print base
 if not os.path.exists(base):
@@ -201,7 +198,7 @@ times = [0.2* hoa, 15.0* hoa, 50.0* hoa]
 ###
 # Performance Params
 ###
-N = 36000 # number of RTN trajectories
+N = 32000 # number of RTN trajectories
 stepsize = 0.021 # Step-forward matrices step size, dont lower
 
 ###
@@ -495,6 +492,14 @@ taus = []
 while t_ < tau_end:
     taus.append(t_)
     t_ += dtau
+a_start = -3.0
+a_end = 3.0
+da = 0.05
+alist = []
+a_ = a_start
+while a_ <= a_end:
+    alist.append(a_)
+    a_ += da
 
 sym1 = []
 sym3 = []
@@ -551,13 +556,11 @@ def SCORPSEfac(partition):
 
 start = time.time()
 prev_time = -1
-tau = 9.325
-xlist = np.arange(a_start, a_end, d_a)
-# normally 5.263022
+xlist = taus
 
 # XXX HERE XXX
 pulsefs = [X_factory(_theta, _constpair, _antisym, tau, normproc=_normproc,
-                                    a=(a/tau)) for a in xlist]
+                                    a=(5.263022/tau)) for tau in xlist]
 
 start = time.time()
 fullstart = start
