@@ -224,15 +224,90 @@ def csamplef(f, s, e, sections):
         return fsections[bin_num]
     return g
 
+
+# Systematic Error
+def eta_sys(t):
+    return Delta
+
+# Eq. 2
+# Hamiltonian
+def generateH(a, eta):
+    def H_(t):
+        return H_t(a(t), eta(t))
+    return H_
+
+def H_p(a, eta, t):
+    if profiling:
+        start = time.time()
+        a_t = a(t)
+        a_time[0] += time.time() - start
+        return H_t2(a_t, eta(t))
+    return H_t2(a(t), eta(t))
+
+# Evaluate H given pre-evaluated a(t) and eta(t)
+def H_t(a_t, eta_t):
+    return H_a(a_t) + H_eta(eta_t)
+
+def H_a(a_t):
+    return 0.5 * a_t * sigmaX
+def H_eta(eta_t):
+    return 0.5 * eta_t * sigmaZ
+
+# Eq. 4
+# Jump times for RTN trajectory
+# t_end can be understood in units of tau_c
+# tau_c is the Noise correlation time
+def generateJumpTimes(t_end, tau_c):
+    ts = []
+    t = 0.
+    while t < t_end:
+        p = np.random.random_sample()
+        dt = (-tau_c) * np.log(p)
+        t += dt
+        ts.append(t)
+    return ts
+
+# Eq. 5
+# Generate a noise function from jumps
+# i.e. an RTN trajectory
+# The heaviside function used is 1 at 0.
+def generateEta(ts, eta_0, t0=None, te=None):
+    def eta(t):
+        if t0 is not None \
+            and t < t0:
+            return 0
+        if te is not None \
+            and te < t:
+            return 0
+        if t < ts[0]:
+            return eta_0
+        if profiling:
+            start = time.time()
+            res = ((-1) ** sumHeavisideMonotonic(t, ts)) * eta_0
+            eta_time[0] += time.time() - start
+            return res
+        return ((-1) ** sumHeavisideMonotonic(t, ts)) * eta_0
+    return eta
+
+# Can use takewhile over filter because monotonic
+def sumHeavisideMonotonic(t, ts):
+    return len([x for x in takewhile(lambda t_: t_ <= t,ts)])
+
+def ezGenerateEta(t_end, tau_c, eta_0):
+    return generateEta(generateJumpTimes(t_end, tau_c), eta_0)
+
+
 # XXX Shapes
 
-def plotShape(pulsef, name):
+def plotShape(pulsef, name, end=14*pi/3):
     shape = plt.figure()
-    pulse_time = np.linspace(0, 14*pi/3, 5000)
+    pulse_time = np.linspace(0, end, 5000)
     plt.plot(pulse_time, [pulsef(t) for t in pulse_time], "b-", label=name)
     plt.legend(loc="best")
+    plt.ylabel(r"Amplitude in $a_{max}$")
+    plt.xlabel(r"t in $\hbar/a_{max}$")
     plt.ylim([-1.1,1.1])
-    plt.xlim([0.,14*pi/3])
+    plt.xlim([0.,end])
     filename = base + name.replace(" ", "_") + "-shape.png"
     shape.savefig(filename)
 
@@ -240,9 +315,28 @@ if not os.path.exists(base):
     print "Creating directory (at end)"
     os.makedirs(base)
 
-plotShape(a_pi, "Pi Pulse")
-plotShape(a_C, "CORPSE Pulse")
-plotShape(a_SC, "SCORPSE Pulse")
+# Pulses
+
+# plotShape(a_pi, "Pi Pulse")
+# plotShape(a_C, "CORPSE Pulse")
+# plotShape(a_SC, "SCORPSE Pulse")
+
+# Error Functions (Eta)
+
+t_end = 20.
+
+tau_c = 1.
+eta1 = ezGenerateEta(t_end, tau_c, Delta)
+plotShape(eta1, "Noise Function Tau_c 1 #1", t_end)
+tau_c = 1.
+eta1 = ezGenerateEta(t_end, tau_c, Delta)
+plotShape(eta1, "Noise Function Tau_c 1 #2", t_end)
+tau_c = 2.
+eta1 = ezGenerateEta(t_end, tau_c, Delta)
+plotShape(eta1, "Noise Function Tau_c 2", t_end)
+tau_c = 4.
+eta1 = ezGenerateEta(t_end, tau_c, Delta)
+plotShape(eta1, "Noise Function Tau_c 4", t_end)
 
 plt.show()
 
