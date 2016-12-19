@@ -1,6 +1,4 @@
 import os, sys, time
-sys.path.append("/home/arbiter/qc")
-
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -9,6 +7,8 @@ from scipy import integrate
 from scipy.constants import hbar, pi
 from scipy.linalg import expm
 from itertools import takewhile, repeat
+# most likely will require multiprocess version 0.70.5.dev0
+# can be obtained from https://github.com/uqfoundation/multiprocess
 from multiprocess import Pool
 from multiprocess.dummy import Pool as ThreadPool
 from math import cos, sin
@@ -32,6 +32,8 @@ sigmaY = np.array([    [0.,-1.j] ,
 
 sigmaZ = np.array([    [1., 0.]  ,
                         [0.,-1.]  ], np.complex128)
+
+print "lol"
 
 ####
 hbar = 1.
