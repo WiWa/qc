@@ -378,9 +378,9 @@ def GRAPE(T, n, N, rho_0, rho_f, tau_c, eta_0, stepsize, amps, epsilon=0.01):
         # Eq. 13
         new_amp = a_m + epsilon*a_max*d_phi_d_am
         if new_amp <= -a_max:
-            new_amp = .99 * -a_max
+            new_amp = .95 * -a_max
         if new_amp >= a_max:
-            new_amp = .99 * a_max
+            new_amp = .95 * a_max
         return new_amp
 
     new_amps = map(makeNewAmps, range(n))
@@ -463,9 +463,9 @@ tau_c_f = 32. * hoa
 ###
 # Performance Params
 ###
-dtau_c = 0.89 * hoa
-N = 1300 # number of RTN trajN = ectories
-stepsize = 0.023 # Step-forward matrices step size
+dtau_c = 0.52 * hoa
+N = 1600 # number of RTN trajN = ectories
+stepsize = 0.025 # Step-forward matrices step size
 
 ###
 t_end = tau_c_f + 0.42 * hoa # end of RTN
@@ -481,23 +481,25 @@ while tau_c < tau_c_f:
     tau_c += dtau_c
     tau_cs.append(tau_c)
 
+# Actual parameters may vary... these ones don't give particularly great results
+# Actual GRAPE pulse sequence was recovered from an earlier commit ("almost-grape")
 T_G = 4 * hoa # sousa figure 2
 n = 6 # number of different pulse amplitudes
-epsilon = 0.6 # amount each gradient step can influence amps
-grape_steps = 8 # number of optimization steps
+epsilon = 0.3 # amount each gradient step can influence amps
+grape_steps = 50 # number of optimization steps
 ### Grape
 doGrape = True
 if doGrape:
-    tau_grape = 3.
-    init_amps = [a_max for i in range(n)]
-    grape_amps = init_amps
-    for i in range(grape_steps):
-        start = time.time()
-        grape_amps = GRAPE(T_G, n, 50, rho_0, rho_f, tau_grape, eta_0, stepsize, grape_amps, epsilon)
-        print("grapestep "+str(i)+": " + str(time.time() - start))
-        print(grape_amps)
-    np.savetxt(base + "grape_pulse.txt", grape_amps)
-    # grape_amps = [-9.621202561946972098e-01, 8.504097303622385473e-01, 9.636089949467689930e-01, 9.616603542428837637e-01, 9.889276095541640332e-01, 9.688337027709256200e-01]
+    # tau_grape = 4.
+    # init_amps = [a_max for i in range(n)]
+    # grape_amps = init_amps
+    # for i in range(grape_steps):
+    #     start = time.time()
+    #     grape_amps = GRAPE(T_G, n, 50, rho_0, rho_f, tau_grape, eta_0, stepsize, grape_amps, epsilon)
+    #     print("grapestep "+str(i)+": " + str(time.time() - start))
+    #     print(grape_amps)
+    # np.savetxt(base + "grape_pulse.txt", grape_amps)
+    grape_amps = [-9.621202561946972098e-01, 8.504097303622385473e-01, 9.636089949467689930e-01, 9.616603542428837637e-01, 9.889276095541640332e-01, 9.688337027709256200e-01]
     grape_pulse = aggAmps(grape_amps, T_G)
 
 eta_0_a_max = eta_0 / a_max
